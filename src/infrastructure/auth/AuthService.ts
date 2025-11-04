@@ -1,5 +1,3 @@
-// src/infrastructure/auth/AuthService.ts
-
 import jwt from "jsonwebtoken";
 
 export interface JwtPayload {
@@ -21,9 +19,7 @@ export class AuthService {
     this.jwtSecret = jwtSecret;
   }
 
-  /**
-   * Valida un token JWT
-   */
+  //Valida un token JWT
   validateToken(token: string): TokenValidationResult {
     try {
       const decoded = jwt.verify(token, this.jwtSecret) as JwtPayload;
@@ -40,9 +36,7 @@ export class AuthService {
     }
   }
 
-  /**
-   * Extrae el token del header Authorization
-   */
+  // Extrae el token del header Authorization
   extractTokenFromHeader(authHeader: string | undefined): string | null {
     if (!authHeader) {
       return null;
@@ -57,9 +51,7 @@ export class AuthService {
     return parts[1];
   }
 
-  /**
-   * Verifica si un usuario tiene un permiso específico
-   */
+  // Verifica si un usuario tiene un permiso específico
   hasPermission(payload: JwtPayload, permission: string): boolean {
     if (!payload.permissions) {
       return false;
@@ -69,16 +61,12 @@ export class AuthService {
            payload.permissions.includes("admin");
   }
 
-  /**
-   * Verifica si un usuario es admin
-   */
+  // Verifica si un usuario es admin
   isAdmin(payload: JwtPayload): boolean {
     return this.hasPermission(payload, "admin");
   }
 
-  /**
-   * Genera un token de prueba (solo para testing)
-   */
+  // Genera un token de prueba (solo para testing)
   generateTestToken(userId: string, login: string, permissions: string[] = []): string {
     return jwt.sign(
       { userId, login, permissions },
@@ -87,9 +75,7 @@ export class AuthService {
     );
   }
 
-  /**
-   * Decodifica un token sin verificar (útil para debugging)
-   */
+  // Decodifica un token sin verificar (útil para debugging)
   decodeToken(token: string): JwtPayload | null {
     try {
       return jwt.decode(token) as JwtPayload;

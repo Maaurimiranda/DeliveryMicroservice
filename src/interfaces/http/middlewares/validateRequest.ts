@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
-import { validationResult, ValidationError as ExpressValidationError } from "express-validator";
-
+// import { validationResult } from "express-validator";
+/*
 export const validateRequest = (
   req: Request,
   res: Response,
@@ -27,6 +27,7 @@ export const validateRequest = (
 
   next();
 };
+*/
 
 /**
  * Validador personalizado para IDs de MongoDB/custom

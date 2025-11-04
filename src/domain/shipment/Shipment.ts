@@ -41,7 +41,9 @@ export class Shipment {
     this._updatedAt = new Date();
     this._events = [];
   }
+ 
 
+  // Getters
   get id(): string {
     return this._id;
   }

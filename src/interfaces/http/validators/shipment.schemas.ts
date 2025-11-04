@@ -212,7 +212,7 @@ export const paginationSchema = z.object({
         message: "limit debe estar entre 1 y 100"
       })
       .optional()
-      .default("50"),
+      .default(50),
     skip: z.string()
       .regex(/^\d+$/, "skip debe ser un número")
       .transform(Number)
@@ -220,7 +220,7 @@ export const paginationSchema = z.object({
         message: "skip debe ser mayor o igual a 0"
       })
       .optional()
-      .default("0")
+      .default(0)
   })
 });
 

@@ -1,5 +1,3 @@
-// src/interfaces/http/controllers/ShipmentController.ts
-
 import { Response } from "express";
 import { AuthRequest } from "../../../infrastructure/auth/JwtAuthMiddleware";
 
