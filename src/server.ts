@@ -1,7 +1,7 @@
 import express, { Application } from "express";
 import cors from "cors";
 import helmet from "helmet";
-import { config, validateConfig } from "./config/environment";
+import { config } from "./config/environment";
 import { connectDatabase, disconnectDatabase } from "./config/database";
 import { connectRabbitMq, disconnectRabbitMq } from "./config/rabbitmq";
 
@@ -179,11 +179,9 @@ class Server {
     await this.consumers.logout.start();
   }
 
+  // congigurar y iniciar el servidor
   async start(): Promise<void> {
     try {
-      // Validar configuración
-      validateConfig();
-
       // Conectar a MongoDB
       console.log("🔌 Conectando a MongoDB...");
       await connectDatabase();
@@ -213,11 +211,12 @@ class Server {
       // Graceful shutdown
       this.setupGracefulShutdown();
     } catch (error) {
-      console.error("❌ Error al iniciar el servidor:", error);
+      console.error("Error al iniciar el servidor:", error);
       process.exit(1);
     }
   }
 
+  // Graceful shutdown - Cerrar conexiones al recibir señales de terminación
   private setupGracefulShutdown(): void {
     const shutdown = async (signal: string) => {
       console.log(`\n${signal} recibido. Cerrando servidor...`);
@@ -225,10 +224,10 @@ class Server {
       try {
         await disconnectRabbitMq();
         await disconnectDatabase();
-        console.log("✅ Servidor cerrado correctamente");
+        console.log("Servidor cerrado correctamente");
         process.exit(0);
       } catch (error) {
-        console.error("❌ Error al cerrar el servidor:", error);
+        console.error("Error al cerrar el servidor:", error);
         process.exit(1);
       }
     };

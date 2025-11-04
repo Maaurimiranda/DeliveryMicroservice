@@ -1,3 +1,5 @@
+// src/interfaces/http/controllers/ShipmentController.ts
+
 import { Response } from "express";
 import { AuthRequest } from "../../../infrastructure/auth/JwtAuthMiddleware";
 
@@ -17,38 +19,27 @@ import { ShipmentProjectionRepository } from "../../../infrastructure/persistenc
 import { EventStoreRepository } from "../../../infrastructure/persistence/mongodb/EventStoreRepository";
 
 export class ShipmentController {
-
-  // Constructor con inyección de dependencias
   constructor(
-    private readonly cancelShipmentUseCase: CancelShipmentUseCase,
-    private readonly completeExchangeUseCase: CompleteExchangeUseCase,
-    private readonly completeReturnUseCase: CompleteReturnUseCase,
     private readonly createShipmentUseCase: CreateShipmentUseCase,
-    private readonly initiateExchangeUseCase: InitiateExchangeUseCase,
-    private readonly initiateReturnUseCase: InitiateReturnUseCase,
-    private readonly moveToDeliveredUseCase: MoveToDeliveredUseCase,
-    private readonly moveToInTransitUseCase: MoveToInTransitUseCase,
     private readonly moveToPreparedUseCase: MoveToPreparedUseCase,
+    private readonly moveToInTransitUseCase: MoveToInTransitUseCase,
+    private readonly moveToDeliveredUseCase: MoveToDeliveredUseCase,
+    private readonly cancelShipmentUseCase: CancelShipmentUseCase,
+    private readonly initiateReturnUseCase: InitiateReturnUseCase,
+    private readonly completeReturnUseCase: CompleteReturnUseCase,
+    private readonly initiateExchangeUseCase: InitiateExchangeUseCase,
+    private readonly completeExchangeUseCase: CompleteExchangeUseCase,
     private readonly projectionRepository: ShipmentProjectionRepository,
     private readonly eventStoreRepository: EventStoreRepository
   ) {}
 
+  // ==================== CREAR ENVÍO ====================
 
   createShipment = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { orderId, customerInfo, articles, description } = req.body;
-
-      if (!orderId || !customerInfo || !articles) {
-        res.status(400).json({
-          error: "Campos requeridos faltantes",
-          message: "orderId, customerInfo y articles son requeridos"
-        });
-        return;
-      }
-
       const actor = req.user?.login || "system";
 
-      // IR a CU de creación de envío
       const shipment = await this.createShipmentUseCase.execute({
         orderId,
         customerInfo,
@@ -59,16 +50,19 @@ export class ShipmentController {
 
       res.status(201).json({
         success: true,
+        message: "Envío creado exitosamente",
         data: shipment.toJSON()
       });
     } catch (error: any) {
-      console.error("Error al crear envío:", error);
+      console.error("❌ Error al crear envío:", error);
       res.status(500).json({
         error: "Error al crear envío",
         message: error.message
       });
     }
   };
+
+  // ==================== CONSULTAS ====================
 
   getShipmentById = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -89,7 +83,7 @@ export class ShipmentController {
         data: shipment.toJSON()
       });
     } catch (error: any) {
-      console.error("Error al obtener envío:", error);
+      console.error("❌ Error al obtener envío:", error);
       res.status(500).json({
         error: "Error al obtener envío",
         message: error.message
@@ -109,7 +103,7 @@ export class ShipmentController {
         count: shipments.length
       });
     } catch (error: any) {
-      console.error("Error al obtener envíos:", error);
+      console.error("❌ Error al obtener envíos por orden:", error);
       res.status(500).json({
         error: "Error al obtener envíos",
         message: error.message
@@ -120,19 +114,34 @@ export class ShipmentController {
   getMyShipments = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       if (!req.user) {
-        res.status(401).json({ error: "No autenticado" });
+        res.status(401).json({ 
+          error: "No autenticado",
+          message: "Se requiere autenticación" 
+        });
         return;
       }
 
-      const shipments = await this.projectionRepository.findByCustomerId(req.user.userId);
+      const limit = parseInt(req.query.limit as string) || 50;
+      const skip = parseInt(req.query.skip as string) || 0;
+
+      const shipments = await this.projectionRepository.findByCustomerId(
+        req.user.userId
+      );
+
+      // Aplicar paginación manual (ya que findByCustomerId no la soporta)
+      const paginatedShipments = shipments.slice(skip, skip + limit);
 
       res.json({
         success: true,
-        data: shipments.map(s => s.toJSON()),
-        count: shipments.length
+        data: paginatedShipments.map(s => s.toJSON()),
+        pagination: {
+          limit,
+          skip,
+          total: shipments.length
+        }
       });
     } catch (error: any) {
-      console.error("Error al obtener mis envíos:", error);
+      console.error("❌ Error al obtener mis envíos:", error);
       res.status(500).json({
         error: "Error al obtener envíos",
         message: error.message
@@ -154,11 +163,12 @@ export class ShipmentController {
         pagination: {
           limit,
           skip,
-          total
+          total,
+          pages: Math.ceil(total / limit)
         }
       });
     } catch (error: any) {
-      console.error("Error al obtener envíos:", error);
+      console.error("❌ Error al obtener todos los envíos:", error);
       res.status(500).json({
         error: "Error al obtener envíos",
         message: error.message
@@ -172,10 +182,10 @@ export class ShipmentController {
 
       const shipment = await this.projectionRepository.findById(id);
 
-      // Si no se encuentra el envío, devolvemos error 404 not found
       if (!shipment) {
         res.status(404).json({
-          error: "Envío no encontrado"
+          error: "Envío no encontrado",
+          message: `No se encontró envío con ID: ${id}`
         });
         return;
       }
@@ -186,11 +196,12 @@ export class ShipmentController {
           shipmentId: shipment.id,
           orderId: shipment.orderId,
           currentStatus: shipment.status.value,
-          tracking: shipment.tracking
+          tracking: shipment.tracking,
+          lastUpdate: shipment.updatedAt
         }
       });
     } catch (error: any) {
-      console.error("Error al obtener tracking:", error);
+      console.error("❌ Error al obtener tracking:", error);
       res.status(500).json({
         error: "Error al obtener tracking",
         message: error.message
@@ -198,10 +209,43 @@ export class ShipmentController {
     }
   };
 
+  getEventHistory = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+
+      const events = await this.eventStoreRepository.getEventsByShipmentId(id);
+
+      if (events.length === 0) {
+        res.status(404).json({
+          error: "Envío no encontrado",
+          message: `No se encontraron eventos para el envío: ${id}`
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        data: {
+          shipmentId: id,
+          eventCount: events.length,
+          events: events.map(e => e.toJSON())
+        }
+      });
+    } catch (error: any) {
+      console.error("❌ Error al obtener historial de eventos:", error);
+      res.status(500).json({
+        error: "Error al obtener eventos",
+        message: error.message
+      });
+    }
+  };
+
+  // ==================== TRANSICIONES DE ESTADO ====================
+
   moveToPrepared = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const { description } = req.body;
+      const { description } = req.body || {};
       const actor = req.user?.login || "system";
 
       const shipment = await this.moveToPreparedUseCase.execute({
@@ -216,7 +260,7 @@ export class ShipmentController {
         data: shipment.toJSON()
       });
     } catch (error: any) {
-      console.error("Error al mover a PREPARED:", error);
+      console.error("❌ Error al mover a PREPARED:", error);
       res.status(400).json({
         error: "Error al cambiar estado",
         message: error.message
@@ -227,7 +271,7 @@ export class ShipmentController {
   moveToInTransit = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const { description } = req.body;
+      const { description } = req.body || {};
       const actor = req.user?.login || "system";
 
       const shipment = await this.moveToInTransitUseCase.execute({
@@ -242,7 +286,7 @@ export class ShipmentController {
         data: shipment.toJSON()
       });
     } catch (error: any) {
-      console.error("Error al mover a IN_TRANSIT:", error);
+      console.error("❌ Error al mover a IN_TRANSIT:", error);
       res.status(400).json({
         error: "Error al cambiar estado",
         message: error.message
@@ -253,7 +297,7 @@ export class ShipmentController {
   moveToDelivered = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const { description } = req.body;
+      const { description } = req.body || {};
       const actor = req.user?.login || "system";
 
       const shipment = await this.moveToDeliveredUseCase.execute({
@@ -268,7 +312,7 @@ export class ShipmentController {
         data: shipment.toJSON()
       });
     } catch (error: any) {
-      console.error("Error al mover a DELIVERED:", error);
+      console.error("❌ Error al mover a DELIVERED:", error);
       res.status(400).json({
         error: "Error al cambiar estado",
         message: error.message
@@ -279,22 +323,23 @@ export class ShipmentController {
   cancelShipment = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const { description } = req.body;
+      const { reason, description } = req.body || {};
       const actor = req.user?.login || "system";
 
       const shipment = await this.cancelShipmentUseCase.execute({
         shipmentId: id,
+        reason,
         actor,
         description
       });
 
       res.json({
         success: true,
-        message: "Envío cancelado",
+        message: "Envío cancelado exitosamente",
         data: shipment.toJSON()
       });
     } catch (error: any) {
-      console.error("Error al cancelar envío:", error);
+      console.error("❌ Error al cancelar envío:", error);
       res.status(400).json({
         error: "Error al cancelar envío",
         message: error.message
@@ -302,27 +347,124 @@ export class ShipmentController {
     }
   };
 
+  // ==================== DEVOLUCIONES ====================
+
   initiateReturn = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const { description } = req.body;
+      const { reason, description } = req.body || {};
       const actor = req.user?.login || "customer";
 
       const shipment = await this.initiateReturnUseCase.execute({
         shipmentId: id,
+        reason,
         actor,
         description
       });
 
       res.json({
         success: true,
-        message: "Devolución iniciada",
+        message: "Devolución iniciada exitosamente",
         data: shipment.toJSON()
       });
     } catch (error: any) {
-      console.error("Error al iniciar devolución:", error);
+      console.error("❌ Error al iniciar devolución:", error);
       res.status(400).json({
         error: "Error al iniciar devolución",
+        message: error.message
+      });
+    }
+  };
+
+  completeReturn = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const { productCondition, notes, description } = req.body || {};
+      const actor = req.user?.login || "warehouse_operator";
+
+      const shipment = await this.completeReturnUseCase.execute({
+        shipmentId: id,
+        productCondition,
+        notes,
+        actor,
+        description
+      });
+
+      res.json({
+        success: true,
+        message: "Devolución completada exitosamente",
+        data: shipment.toJSON()
+      });
+    } catch (error: any) {
+      console.error("❌ Error al completar devolución:", error);
+      res.status(400).json({
+        error: "Error al completar devolución",
+        message: error.message
+      });
+    }
+  };
+
+  // ==================== CAMBIOS ====================
+
+  initiateExchange = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const { newArticles, reason, description } = req.body || {};
+      const actor = req.user?.login || "customer";
+
+      const result = await this.initiateExchangeUseCase.execute({
+        shipmentId: id,
+        newArticles,
+        reason,
+        actor,
+        description
+      });
+
+      res.json({
+        success: true,
+        message: "Cambio iniciado exitosamente",
+        data: {
+          originalShipment: result.originalShipment.toJSON(),
+          newShipment: result.newShipment.toJSON()
+        }
+      });
+    } catch (error: any) {
+      console.error("❌ Error al iniciar cambio:", error);
+      res.status(400).json({
+        error: "Error al iniciar cambio",
+        message: error.message
+      });
+    }
+  };
+
+  completeExchange = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const { originalShipmentId, newShipmentId } = req.params;
+      const { productCondition, notes, description } = req.body || {};
+      const actor = req.user?.login || "warehouse_operator";
+
+      const result = await this.completeExchangeUseCase.execute({
+        originalShipmentId,
+        newShipmentId,
+        productCondition,
+        notes,
+        actor,
+        description
+      });
+
+      res.json({
+        success: true,
+        message: "Cambio completado exitosamente",
+        data: {
+          originalShipment: result.originalShipment.toJSON(),
+          newShipment: result.newShipment.toJSON(),
+          nextAction: result.nextAction
+        }
+      });
+    } catch (error: any) {
+      console.error("❌ Error al completar cambio:", error);
+      res.status(400).json({
+        error: "Error al completar cambio",
         message: error.message
       });
     }

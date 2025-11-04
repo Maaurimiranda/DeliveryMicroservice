@@ -5,7 +5,7 @@ dotenv.config(); // Cargar variables de entorno desde .env
 // Configuración de la aplicación
 export const config = {
   server: {
-    port: parseInt(process.env.PORT || "3003"),
+    port: parseInt(process.env.PORT || "3005"),
     nodeEnv: process.env.NODE_ENV || "development"
   },
   mongodb: {
@@ -22,40 +22,14 @@ export const config = {
     }
   },
   jwt: {
-    secret: process.env.JWT_SECRET || "dajhdauhuawdJFHAJoinJUHDOjhdUHDauohd"
+    secret: process.env.JWT_SECRET || "ecb6d3479ac3823f1da7f314d871989b"
   },
   services: {
     authUrl: process.env.AUTH_SERVICE_URL || "http://localhost:3000",
-    ordersUrl: process.env.ORDERS_SERVICE_URL || "http://localhost:3001"
+    ordersUrl: process.env.ORDERS_SERVICE_URL || "http://localhost:3004"
   }
 };
 
-// Validar variables críticas
-export const validateConfig = (): void => {
-  const requiredEnvVars = [
-    "JWT_SECRET",
-    "MONGODB_URI",
-    "RABBITMQ_URL"
-  ];
-
-  // Verificar si faltan variables de entorno
-  const missingVars = requiredEnvVars.filter(
-    varName => !process.env[varName as keyof NodeJS.ProcessEnv]
-  );
-
-  // Mostrar aviso si faltan variables de entorno
-  if (missingVars.length > 0) {
-    console.warn(
-      `Variables de entorno faltantes: ${missingVars.join(", ")}`
-    );
-    console.warn("Usando valores por defecto (no recomendado para producción)");
-  }
-
-  // Validar variables de entorno críticas - la clave JWT no debe ser la predeterminada en producción
-  if (config.server.nodeEnv === "production" && config.jwt.secret === "your_jwt_secret_change_this") {
-    throw new Error("JWT_SECRET debe configurarse en producción");
-  }
-};
 
 
 

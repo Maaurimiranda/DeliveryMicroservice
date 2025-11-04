@@ -1,8 +1,18 @@
 import { Router } from "express";
 import { ShipmentController } from "../controllers/ShipmentController";
 import { JwtAuthMiddleware } from "../../../infrastructure/auth/JwtAuthMiddleware";
-import { body, param } from "express-validator";
 import { validateRequest } from "../middlewares/validateRequest";
+import {
+  createShipmentSchema,
+  stateTransitionSchema,
+  getByIdSchema,
+  getByOrderSchema,
+  paginationSchema,
+  initiateReturnSchema,
+  completeReturnSchema,
+  initiateExchangeSchema,
+  cancelShipmentSchema
+} from "../validators/shipment.schemas";
 
 export class ShipmentRoutes {
   private router: Router;
@@ -16,180 +26,64 @@ export class ShipmentRoutes {
   }
 
   private setupRoutes(): void {
-    // ------------------ TRACKING PÚBLICO DE ENVÍO ------------------
-    
-    // Tracking público de envío (cualquiera con el ID puede consultar)
-    this.router.get(
-      "/tracking/:id",
-      [
-        param("id").notEmpty().withMessage("ID de envío requerido")
-      ],
-      validateRequest,
-      this.controller.getShipmentTracking
-    );
+    // ------------------ RUTAS PUBLICAS - Tacking de envio ------------------
+    this.router.get("/tracking/:id", validateRequest(getByIdSchema), this.controller.getShipmentTracking);
 
-    // ==================== RUTAS AUTENTICADAS ====================
+    // ------------------ RUTAS AUTENTICADAS Y AUTORIZADAS ------------------
 
-    // Crear envío (solo admin o system)
-    this.router.post(
-      "/",
-      this.authMiddleware.authenticate,
-      this.authMiddleware.requirePermission("admin"),
-      [
-        body("orderId").notEmpty().withMessage("orderId es requerido"),
-        body("customerInfo").isObject().withMessage("customerInfo debe ser un objeto"),
-        body("customerInfo.customerId").notEmpty().withMessage("customerId es requerido"),
-        body("customerInfo.address").notEmpty().withMessage("address es requerido"),
-        body("articles").isArray({ min: 1 }).withMessage("articles debe ser un array no vacío")
-      ],
-      validateRequest,
-      this.controller.createShipment
-    );
+    // Crear un nuevo envío - Requiere: admin
+    this.router.post("/", this.authMiddleware.authenticate, this.authMiddleware.requireAdmin, validateRequest(createShipmentSchema), this.controller.createShipment);
 
-    // Obtener todos los envíos (solo admin)
-    this.router.get(
-      "/",
-      this.authMiddleware.authenticate,
-      this.authMiddleware.requirePermission("admin"),
-      this.controller.getAllShipments
-    );
+    // Obtener todos los envíos con paginación - Requiere: admin
+    this.router.get("/", this.authMiddleware.authenticate, this.authMiddleware.requireAdmin, validateRequest(paginationSchema), this.controller.getAllShipments);
 
-    // Obtener mis envíos (cliente autenticado)
-    this.router.get(
-      "/my-shipments",
-      this.authMiddleware.authenticate,
-      this.controller.getMyShipments
-    );
+    // Obtener envíos del usuario autenticado - Requiere: autenticación
+    this.router.get("/my-shipments", this.authMiddleware.authenticate, validateRequest(paginationSchema), this.controller.getMyShipments);
 
-    // Obtener envío por ID (usuario autenticado)
-    this.router.get(
-      "/:id",
-      this.authMiddleware.authenticate,
-      [
-        param("id").notEmpty().withMessage("ID de envío requerido")
-      ],
-      validateRequest,
-      this.controller.getShipmentById
-    );
+    // Obtener un envío por ID - Requiere: autenticación
+    this.router.get("/:id", this.authMiddleware.authenticate, validateRequest(getByIdSchema), this.controller.getShipmentById);
 
-    // Obtener envíos por orden (usuario autenticado)
-    this.router.get(
-      "/order/:orderId",
-      this.authMiddleware.authenticate,
-      [
-        param("orderId").notEmpty().withMessage("orderId requerido")
-      ],
-      validateRequest,
-      this.controller.getShipmentsByOrder
-    );
+    // Obtener envíos por ID de orden - Requiere: autenticación
+    this.router.get("/order/:orderId", this.authMiddleware.authenticate, validateRequest(getByOrderSchema), this.controller.getShipmentsByOrder);
 
-    // Obtener historial de eventos (admin)
-    this.router.get(
-      "/:id/events",
-      this.authMiddleware.authenticate,
-      this.authMiddleware.requirePermission("admin"),
-      [
-        param("id").notEmpty().withMessage("ID de envío requerido")
-      ],
-      validateRequest,
-      this.controller.getEventHistory
-    );
 
-    // ==================== TRANSICIONES DE ESTADO (solo admin) ====================
+    // Obtener historial de eventos de un envío - Requiere: admin
+    this.router.get("/:id/events", this.authMiddleware.authenticate, this.authMiddleware.requireAdmin, validateRequest(getByIdSchema), this.controller.getEventHistory);
 
-    // Mover a PREPARED
-    this.router.post(
-      "/:id/prepare",
-      this.authMiddleware.authenticate,
-      this.authMiddleware.requirePermission("admin"),
-      [
-        param("id").notEmpty().withMessage("ID de envío requerido"),
-        body("description").optional().isString()
-      ],
-      validateRequest,
-      this.controller.moveToPrepared
-    );
 
-    // Mover a IN_TRANSIT
-    this.router.post(
-      "/:id/ship",
-      this.authMiddleware.authenticate,
-      this.authMiddleware.requirePermission("admin"),
-      [
-        param("id").notEmpty().withMessage("ID de envío requerido"),
-        body("description").optional().isString()
-      ],
-      validateRequest,
-      this.controller.moveToInTransit
-    );
+    // ==================== TRANSICIONES DE ESTADO (Admin) ====================
 
-    // Mover a DELIVERED
-    this.router.post(
-      "/:id/deliver",
-      this.authMiddleware.authenticate,
-      this.authMiddleware.requirePermission("admin"),
-      [
-        param("id").notEmpty().withMessage("ID de envío requerido"),
-        body("description").optional().isString()
-      ],
-      validateRequest,
-      this.controller.moveToDelivered
-    );
+    // Mover envío a estado PREPARED - Requiere: admin
+    this.router.post("/:id/prepare", this.authMiddleware.authenticate, this.authMiddleware.requireAdmin, validateRequest(stateTransitionSchema), this.controller.moveToPrepared);
 
-    // Cancelar envío
-    this.router.post(
-      "/:id/cancel",
-      this.authMiddleware.authenticate,
-      this.authMiddleware.requirePermission("admin"),
-      [
-        param("id").notEmpty().withMessage("ID de envío requerido"),
-        body("description").optional().isString()
-      ],
-      validateRequest,
-      this.controller.cancelShipment
-    );
+
+    // Mover envío a estado IN_TRANSIT - Requiere: admin
+    this.router.post("/:id/ship", this.authMiddleware.authenticate, this.authMiddleware.requireAdmin, validateRequest(stateTransitionSchema), this.controller.moveToInTransit);
+
+    // Mover envío a estado DELIVERED - Requiere: admin
+    this.router.post("/:id/deliver", this.authMiddleware.authenticate, this.authMiddleware.requireAdmin, validateRequest(stateTransitionSchema), this.controller.moveToDelivered);
+
+    // Cancelar un envío - Requiere: admin
+    this.router.post("/:id/cancel", this.authMiddleware.authenticate, this.authMiddleware.requireAdmin, validateRequest(cancelShipmentSchema), this.controller.cancelShipment);
+
 
     // ==================== DEVOLUCIONES Y CAMBIOS ====================
 
-    // Iniciar devolución (cliente o admin)
-    this.router.post(
-      "/:id/return",
-      this.authMiddleware.authenticate,
-      [
-        param("id").notEmpty().withMessage("ID de envío requerido"),
-        body("description").optional().isString()
-      ],
-      validateRequest,
-      this.controller.initiateReturn
-    );
+    // Iniciar proceso de devolución - Requiere: autenticación (cliente o admin)
+    this.router.post("/:id/return", this.authMiddleware.authenticate, validateRequest(initiateReturnSchema), this.controller.initiateReturn);
 
-    // Completar devolución (solo admin)
-    this.router.post(
-      "/:id/return/complete",
-      this.authMiddleware.authenticate,
-      this.authMiddleware.requirePermission("admin"),
-      [
-        param("id").notEmpty().withMessage("ID de envío requerido"),
-        body("description").optional().isString()
-      ],
-      validateRequest,
-      this.controller.completeReturn
-    );
+    // Completar proceso de devolución - Requiere: admin
+    this.router.post("/:id/return/complete", this.authMiddleware.authenticate, this.authMiddleware.requireAdmin, validateRequest(completeReturnSchema), this.controller.completeReturn);
 
-    // Iniciar cambio de producto (cliente o admin)
-    this.router.post(
-      "/:id/exchange",
-      this.authMiddleware.authenticate,
-      [
-        param("id").notEmpty().withMessage("ID de envío requerido"),
-        body("description").optional().isString()
-      ],
-      validateRequest,
-      this.controller.initiateExchange
-    );
+
+    // Iniciar proceso de cambio de producto - Requiere: autenticación (cliente o admin)
+    this.router.post("/:id/exchange", this.authMiddleware.authenticate, validateRequest(initiateExchangeSchema), this.controller.initiateExchange);
+
+
+    // Completar proceso de cambio de producto - Requiere: admin
+    this.router.post("/:originalShipmentId/exchange/:newShipmentId/complete", this.authMiddleware.authenticate, this.authMiddleware.requireAdmin, validateRequest(completeExchangeSchema), this.controller.completeExchange);
   }
 
-  // Método para obtener el router
   getRouter(): Router {
     return this.router;
   }

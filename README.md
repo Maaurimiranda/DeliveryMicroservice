@@ -7,7 +7,6 @@ Microservicio de gestión de envíos implementado con TypeScript, Express, Mongo
 - [Características](#características)
 - [Arquitectura](#arquitectura)
 - [Tecnologías](#tecnologías)
-- [Instalación](#instalación)
 - [Configuración](#configuración)
 - [Ejecución](#ejecución)
 - [API Endpoints](#api-endpoints)
@@ -29,18 +28,70 @@ Microservicio de gestión de envíos implementado con TypeScript, Express, Mongo
 
 ```
 src/
-├── domain/              # Capa de Dominio
-│   ├── shipment/        # Agregado Shipment
-│   └── shared/          # Value Objects compartidos
-├── application/         # Capa de Aplicación
-│   └── usecases/        # Casos de uso
-├── infrastructure/      # Capa de Infraestructura
-│   ├── persistence/     # Repositorios MongoDB
-│   ├── messaging/       # RabbitMQ
-│   └── auth/            # JWT Authentication
-├── interfaces/          # Capa de Interfaces
-│   └── http/            # REST API
-└── config/              # Configuración
+  ├── domain/
+  │   ├── shipment/
+  │   │   ├── Shipment.ts              
+  │   │   ├── ShipmentEvent.ts         
+  │   │   ├── ShipmentStatus.ts        
+  │   │   ├── ShipmentType.ts          
+  │   │   └── ShipmentValidator.ts     
+  │   └── shared/
+  │       ├── DomainEvent.ts 
+  │       └── ValueObject.ts 
+  ├── application/
+  │   ├── usecasesa
+  │   │   ├── CreateShipmentUseCase.ts 
+  │   │   ├── MoveToPreparingUseCase.ts 
+  │   │   ├── MoveToInTransitUseCase.ts 
+  │   │   ├── MoveToDeliveredUseCase.ts 
+  │   │   ├── CancelShipmentUseCase.ts 
+  │   │   ├── InitiateReturnUseCase.ts 
+  │   │   ├── CompleteReturnUseCase.ts 
+  │   │   ├── InitiateExchangeUseCase.ts 
+  │   │   └── CompleteExchangeUseCase.ts 
+  │   ├── services/
+  │   │   ├── ShipmentApplicationService.ts 
+  │   │   └── ProjectionService.ts 
+  │   └── dto/
+  │       ├── CreateShipmentDto.ts 
+  │       ├── ShipmentResponseDto.ts 
+  │       └── UpdateStateDto.ts 
+  ├── infrastructure/
+  │   ├── persistence/
+  │   │   ├── mongodb/
+  │   │   │   ├── MongoDbConnection.ts 
+  │   │   │   ├── EventStoreRepository.ts         
+  │   │   │   ├── ShipmentProjectionRepository.ts 
+  │   │   │   └── StatusProjectionRepository.ts   
+  │   │   └── repositories/
+  │   │       └── ShipmentRepository.ts           
+  │   ├── messaging/
+  │   │   ├── rabbitmq/
+  │   │   │   ├── RabbitMqConnection.ts 
+  │   │   │   ├── RabbitMqPublisher.ts 
+  │   │   │   └── RabbitMqConsumer.ts 
+  │   │   └── consumers/
+  │   │       ├── PaymentApprovedConsumer.ts 
+  │   │       └── OrderRefundConsumer.ts 
+  │   └── auth/
+  │       ├── JwtAuthMiddleware.ts 
+  │       └── AuthService.ts 
+  ├── interfaces/
+  │   ├── http/
+  │   │   ├── routes/
+  │   │   │   └── shipment.routes.ts 
+  │   │   ├── controllers/
+  │   │   │   └── ShipmentController.ts 
+  │   │   └── middlewares/
+  │   │       ├── errorHandler.ts 
+  │   │       └── validateRequest.ts 
+  │   └── events/
+  │       └── EventHandlers.ts 
+  ├── config/
+  │   ├── database.ts 
+  │   ├── rabbitmq.ts 
+  │   └── environment.ts 
+  └── server.ts
 ```
 
 ### Estados del Envío
@@ -63,38 +114,6 @@ CANCELLED                          RETURNING
 - **JWT** para autenticación
 - **Docker** & Docker Compose
 
-## 📦 Instalación
-
-### Paso 1: Clonar/Crear el proyecto
-
-```bash
-mkdir delivery-service
-cd delivery-service
-```
-
-### Paso 2: Inicializar proyecto
-
-```bash
-npm init -y
-```
-
-### Paso 3: Instalar dependencias
-
-```bash
-# Dependencias principales
-npm install express mongodb amqplib jsonwebtoken bcrypt dotenv cors helmet express-validator
-
-# Dependencias de desarrollo
-npm install -D typescript @types/express @types/node @types/mongodb @types/amqplib @types/jsonwebtoken @types/bcrypt @types/cors ts-node nodemon @types/express-validator
-```
-
-### Paso 4: Inicializar TypeScript
-
-```bash
-npx tsc --init
-```
-
-Copiar los archivos de configuración proporcionados anteriormente.
 
 ## ⚙️ Configuración
 
@@ -126,7 +145,6 @@ AUTH_SERVICE_URL=http://localhost:3000
 ORDERS_SERVICE_URL=http://localhost:3001
 ```
 
-⚠️ **IMPORTANTE**: El `JWT_SECRET` debe ser el mismo que usa el servicio de Auth para validar tokens.
 
 ## 🚀 Ejecución
 
