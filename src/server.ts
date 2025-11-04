@@ -16,16 +16,15 @@ import { OrderRefundConsumer } from "./infrastructure/messaging/consumers/OrderR
 import { LogoutConsumer } from "./infrastructure/messaging/consumers/LogoutConsumer";
 
 // Use Cases
+import { CancelShipmentUseCase } from "./application/usecases/CancelShipmentUseCase";
+import { CompleteExchangeUseCase } from "./application/usecases/CompleteExchangeUseCase";
+import { CompleteReturnUseCase } from "./application/usecases/CompleteReturnUseCase";
 import { CreateShipmentUseCase } from "./application/usecases/CreateShipmentUseCase";
-import {
-  MoveToPreparedUseCase,
-  MoveToInTransitUseCase,
-  MoveToDeliveredUseCase,
-  CancelShipmentUseCase,
-  InitiateReturnUseCase,
-  CompleteReturnUseCase,
-  InitiateExchangeUseCase
-} from "./application/usecases/StateTransitionUseCases";
+import { InitiateExchangeUseCase } from "./application/usecases/InitiateExchangeUseCase";
+import { InitiateReturnUseCase } from "./application/usecases/InitiateReturnUseCase";
+import { MoveToDeliveredUseCase } from "./application/usecases/MoveToDeliveredUseCase";
+import { MoveToInTransitUseCase } from "./application/usecases/MoveToInTransitUseCase";
+import { MoveToPreparedUseCase } from "./application/usecases/MoveToPreparedUseCase";
 
 // HTTP Layer
 import { ShipmentController } from "./interfaces/http/controllers/ShipmentController";
@@ -238,6 +237,7 @@ class Server {
     process.on("SIGINT", () => shutdown("SIGINT"));
   }
 }
+
 
 // Iniciar servidor
 const server = new Server();

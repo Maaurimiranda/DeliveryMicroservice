@@ -1,5 +1,3 @@
-// src/interfaces/events/EventHandlers.ts
-
 import { ShipmentEvent, ShipmentEventType } from "../../domain/shipment/ShipmentEvent";
 import { ProjectionService } from "../../application/services/ProjectionService";
 import { RabbitMqPublisher } from "../../infrastructure/messaging/rabbitmq/RabbitMqPublisher";
@@ -12,8 +10,9 @@ export class EventHandlers {
     private readonly statusProjectionRepository: StatusProjectionRepository
   ) {}
 
+  // Manejador de eventos individual
   async handleShipmentEvent(event: ShipmentEvent): Promise<void> {
-    console.log(`🎯 Manejando evento: ${event.eventType} para envío ${event.shipmentId}`);
+    console.log(`Manejando evento: ${event.eventType} para envío ${event.shipmentId}`);
 
     try {
       // Actualizar proyección principal
@@ -25,9 +24,9 @@ export class EventHandlers {
       // Publicar evento a RabbitMQ si corresponde
       await this.publishExternalEvent(event);
 
-      console.log(`✅ Evento procesado exitosamente: ${event.eventType}`);
+      console.log(`Evento procesado exitosamente: ${event.eventType}`);
     } catch (error: any) {
-      console.error(`❌ Error al manejar evento ${event.eventType}:`, error.message);
+      console.error(`Error al manejar evento ${event.eventType}:`, error.message);
       throw error;
     }
   }
@@ -73,7 +72,7 @@ export class EventHandlers {
       }
     }
 
-    console.log(`✅ Lote de eventos procesado`);
+    console.log(`Lote de eventos procesado`);
   }
 
   async replayEvents(shipmentId: string, events: ShipmentEvent[]): Promise<void> {

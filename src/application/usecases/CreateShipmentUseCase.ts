@@ -1,5 +1,3 @@
-// src/application/usecases/CreateShipmentUseCase.ts
-
 import { Shipment } from "../../domain/shipment/Shipment";
 import { ShipmentEvent, CustomerInfo, Article } from "../../domain/shipment/ShipmentEvent";
 import { ShipmentStatus } from "../../domain/shipment/ShipmentStatus";
@@ -87,9 +85,7 @@ export class CreateShipmentUseCase {
     return shipment;
   }
 
-  /**
-   * Valida el comando de creación
-   */
+  // validar que el envío no se haya creado previamente
   private validateCommand(command: CreateShipmentCommand): void {
     // Validar orderId
     ShipmentValidator.validateOrderId(command.orderId);

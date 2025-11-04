@@ -1,11 +1,7 @@
-// src/interfaces/http/middlewares/errorHandler.ts
-
 import { Request, Response, NextFunction } from "express";
 import { MongoError } from "mongodb";
 
-/**
- * Tipos de errores personalizados
- */
+// Errores personalizados
 export class DomainError extends Error {
   constructor(message: string) {
     super(message);
@@ -44,9 +40,7 @@ export class ForbiddenError extends Error {
   }
 }
 
-/**
- * Middleware principal de manejo de errores
- */
+// Middleware de manejo de errores
 export const errorHandler = (
   err: Error,
   req: Request,
@@ -54,7 +48,7 @@ export const errorHandler = (
   next: NextFunction
 ): void => {
   // Log del error (en producción usar un logger apropiado)
-  console.error("❌ Error capturado:", {
+  console.error("Error capturado:", {
     name: err.name,
     message: err.message,
     stack: process.env.NODE_ENV === "development" ? err.stack : undefined,

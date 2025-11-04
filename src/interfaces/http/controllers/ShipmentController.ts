@@ -1,31 +1,38 @@
 import { Response } from "express";
 import { AuthRequest } from "../../../infrastructure/auth/JwtAuthMiddleware";
+
+// CASOS DE USO
+import { CancelShipmentUseCase } from "../../../application/usecases/CancelShipmentUseCase";
+import { CompleteExchangeUseCase } from "../../../application/usecases/CompleteExchangeUseCase";
+import { CompleteReturnUseCase } from "../../../application/usecases/CompleteReturnUseCase";
 import { CreateShipmentUseCase } from "../../../application/usecases/CreateShipmentUseCase";
-import {
-  MoveToPreparedUseCase,
-  MoveToInTransitUseCase,
-  MoveToDeliveredUseCase,
-  CancelShipmentUseCase,
-  InitiateReturnUseCase,
-  CompleteReturnUseCase,
-  InitiateExchangeUseCase
-} from "../../../application/usecases/StateTransitionUseCases";
+import { InitiateExchangeUseCase } from "../../../application/usecases/InitiateExchangeUseCase";
+import { InitiateReturnUseCase } from "../../../application/usecases/InitiateReturnUseCase";
+import { MoveToDeliveredUseCase } from "../../../application/usecases/MoveToDeliveredUseCase";
+import { MoveToInTransitUseCase } from "../../../application/usecases/MoveToInTransitUseCase";
+import { MoveToPreparedUseCase } from "../../../application/usecases/MoveToPreparedUseCase";
+
+// REPOSITORIOS
 import { ShipmentProjectionRepository } from "../../../infrastructure/persistence/mongodb/ShipmentProjectionRepository";
 import { EventStoreRepository } from "../../../infrastructure/persistence/mongodb/EventStoreRepository";
 
 export class ShipmentController {
+
+  // Constructor con inyección de dependencias
   constructor(
-    private readonly createShipmentUseCase: CreateShipmentUseCase,
-    private readonly moveToPreparedUseCase: MoveToPreparedUseCase,
-    private readonly moveToInTransitUseCase: MoveToInTransitUseCase,
-    private readonly moveToDeliveredUseCase: MoveToDeliveredUseCase,
     private readonly cancelShipmentUseCase: CancelShipmentUseCase,
-    private readonly initiateReturnUseCase: InitiateReturnUseCase,
+    private readonly completeExchangeUseCase: CompleteExchangeUseCase,
     private readonly completeReturnUseCase: CompleteReturnUseCase,
+    private readonly createShipmentUseCase: CreateShipmentUseCase,
     private readonly initiateExchangeUseCase: InitiateExchangeUseCase,
+    private readonly initiateReturnUseCase: InitiateReturnUseCase,
+    private readonly moveToDeliveredUseCase: MoveToDeliveredUseCase,
+    private readonly moveToInTransitUseCase: MoveToInTransitUseCase,
+    private readonly moveToPreparedUseCase: MoveToPreparedUseCase,
     private readonly projectionRepository: ShipmentProjectionRepository,
     private readonly eventStoreRepository: EventStoreRepository
   ) {}
+
 
   createShipment = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -41,6 +48,7 @@ export class ShipmentController {
 
       const actor = req.user?.login || "system";
 
+      // IR a CU de creación de envío
       const shipment = await this.createShipmentUseCase.execute({
         orderId,
         customerInfo,
@@ -164,6 +172,7 @@ export class ShipmentController {
 
       const shipment = await this.projectionRepository.findById(id);
 
+      // Si no se encuentra el envío, devolvemos error 404 not found
       if (!shipment) {
         res.status(404).json({
           error: "Envío no encontrado"

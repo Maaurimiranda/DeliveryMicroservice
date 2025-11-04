@@ -1,12 +1,6 @@
-// src/interfaces/http/middlewares/validateRequest.ts
-
 import { Request, Response, NextFunction } from "express";
-import { validationResult, ValidationError as ExpressValidationError } from "express-validator";
+import { validationResult } from "express-validator";
 
-/**
- * Middleware principal de validación
- * Procesa los resultados de express-validator
- */
 export const validateRequest = (
   req: Request,
   res: Response,

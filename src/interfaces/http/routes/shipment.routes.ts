@@ -1,5 +1,3 @@
-// src/interfaces/http/routes/shipment.routes.ts
-
 import { Router } from "express";
 import { ShipmentController } from "../controllers/ShipmentController";
 import { JwtAuthMiddleware } from "../../../infrastructure/auth/JwtAuthMiddleware";
@@ -18,7 +16,7 @@ export class ShipmentRoutes {
   }
 
   private setupRoutes(): void {
-    // ==================== RUTAS PÚBLICAS (con auth opcional) ====================
+    // ------------------ TRACKING PÚBLICO DE ENVÍO ------------------
     
     // Tracking público de envío (cualquiera con el ID puede consultar)
     this.router.get(
@@ -191,6 +189,7 @@ export class ShipmentRoutes {
     );
   }
 
+  // Método para obtener el router
   getRouter(): Router {
     return this.router;
   }

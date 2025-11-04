@@ -1,5 +1,3 @@
-// src/infrastructure/auth/JwtAuthMiddleware.ts
-
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
@@ -35,6 +33,7 @@ export class JwtAuthMiddleware {
       // Formato esperado: "Bearer <token>"
       const parts = authHeader.split(" ");
       
+      // Si no es el formato Bearer, devolvemos error
       if (parts.length !== 2 || parts[0] !== "Bearer") {
         res.status(401).json({
           error: "Formato de token inválido",
@@ -43,9 +42,11 @@ export class JwtAuthMiddleware {
         return;
       }
 
+      // Extraemos el token
       const token = parts[1];
 
       try {
+        // Verificamos y decodificamos el token
         const decoded = jwt.verify(token, this.jwtSecret) as JwtPayload;
         req.user = decoded;
         next();
@@ -77,6 +78,7 @@ export class JwtAuthMiddleware {
     }
   };
 
+  // Autenticación opcional: si no hay token, continúa sin usuario
   optionalAuth = (req: AuthRequest, res: Response, next: NextFunction): void => {
     try {
       const authHeader = req.headers.authorization;
@@ -107,6 +109,7 @@ export class JwtAuthMiddleware {
     }
   };
 
+  // Middleware para verificar permisos específicos
   requirePermission = (permission: string) => {
     return (req: AuthRequest, res: Response, next: NextFunction): void => {
       if (!req.user) {
@@ -131,6 +134,7 @@ export class JwtAuthMiddleware {
     };
   };
 
+  // Middleware específico para verificar permiso de admin
   requireAdmin = (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({
