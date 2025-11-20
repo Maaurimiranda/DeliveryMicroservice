@@ -9,15 +9,13 @@ Microservicio de gestión de envíos implementado con TypeScript, Express, Mongo
 - [Entidades del Dominio](#entidades-del-dominio)
 - [Endpoints por Rol](#endpoints-por-rol)
 - [Interfaz RabbitMQ](#interfaz-rabbitmq)
-- [Diagrama de Flujo de Eventos](#diagrama-de-flujo-de-eventos)
-- [Tabla de Resumen de Eventos](#tabla-de-resumen-de-eventos)
 
-## 📦 Descripción del Microservicio
+## Descripción del Microservicio
 El Microservicio de Envíos es responsable de gestionar todo el ciclo de vida del envío de órdenes de compra, desde que se aprueba el pago hasta la entrega final o devolución del pedido.
 
 ---
 
-## 🎯 Casos de Uso
+## Casos de Uso
 
 #### **CU01 - Registrar Envío**
 
@@ -180,19 +178,19 @@ Flujo:
 
 | **Campo**         | **Descripción** |
 |-------------------|------------------|
-| **Disparador**    | Evento `ORDER_CHANGE_REQUESTED` desde Orders |
+| **Actor**    | User |
 | **Descripción**   | El cliente solicita cambiar un producto. Se crean DOS procesos paralelos:
 1. Envío original: El producto viaja del cliente al almacén (devolución)
 2. Nuevo envío: Se prepara un nuevo envío con el producto de cambio
 Ambos envíos quedan vinculados mediante `relatedShipmentId`. |
 | **Evento emitido**| `EXCHANGE_INITIATED` → Routing key: `shipping.exchange.initiated` |
-| **Transición de estado**| `DELIVERED` o `RETURNING` → `EXCHANGE_PROCESSED`. Se crea un tipo `EXCHANGE` con estado `PENDING`|
+| **Transición de estado**| `DELIVERED`  → `RETURING`. Se crea un envio de tipo `EXCHANGE` con estado `PENDING`|
 
 Flujo:
 
 1. Cliente solicita cambio mediante endpoint
-2. Valida que el envío original esté DELIVERED o RETURNING
-3. Si está DELIVERED, mueve a RETURNING primero
+2. Valida que el envío original esté DELIVERED
+3. Si está DELIVERED, mueve a RETURNING 
 4. Crea nuevo envío tipo EXCHANGE vinculado al original
 5. Marca envío original como EXCHANGE_PROCESSED     
 6. Nuevo envío queda en estado PENDING
@@ -221,6 +219,35 @@ Flujo:
 **Transición de estado**: `EXCHANGE_PROCESSED` → `PREPARED`
 **Evento que emite**: `EXCHANGE_FINALIZED` (routing key: `shipping.exchange.completed.final`, prioridad: 7)
 **Importante**: Este evento es crítico para que Orders procese el reembolso al cliente.
+
+---
+#### **CU10 - Consultar Estado de un Envío** 
+
+| **Campo**         | **Descripción** |
+|-------------------|------------------|
+| **Actor**         | Sin validacion |
+| **Descripción**   | Un usuario sin validacion puede consultar el estado de un envio a partir del id |
+
+
+Flujo:
+
+1. El usuario ingresa el id del envío
+2. Valida que el envío exista
+3. Muestra el estado del envío y su historial de cambios
+
+--- 
+
+#### **CU11 - Consultar todos los envios existentes**
+
+| **Campo**         | **Descripción** |
+|-------------------|------------------|
+| **Actor**         | admin |
+| **Descripción**   | El administrador puede consultar todos los envíos existentes |
+
+Flujo:
+
+1. Busca todos los envíos creados sin importar el estado
+2. Devuelve los envíos
 
 ---
 
@@ -256,7 +283,7 @@ enum ShipmentStatus {
   IN_TRANSIT = 'IN_TRANSIT',            // En tránsito
   DELIVERED = 'DELIVERED',              // Entregado
   CANCELLED = 'CANCELLED',              // Cancelado
-  RETURNING = 'RETURNING',              // Devolución en tránsito
+  RETURNING = 'RETURNING',              // Devolución o cambio en tránsito
   RETURNED = 'RETURNED',                // Devolución completada
   EXCHANGE_PROCESSED = 'EXCHANGE_PROCESSED' // Cambio procesado
 }
@@ -312,42 +339,6 @@ Representa un artículo a enviar.
 }
 ```
 
-### ShipmentEvent
-
-Representa un evento inmutable que registra un cambio en el envío. Base del Event Sourcing.
-
-```typescript
-{
-  eventId: string;                // ID único del evento
-  eventType: ShipmentEventType;   // Tipo de evento
-  shipmentId: string;             // ID del envío afectado
-  orderId: string;                // ID de la orden
-  timestamp: Date;                // Cuándo ocurrió
-  actor?: string;                 // Quién ejecutó la acción
-  description?: string;           // Descripción del evento
-  previousStatus?: string;        // Estado anterior
-  newStatus?: string;             // Nuevo estado
-  customerInfo?: CustomerInfo;    // Info del cliente (eventos de creación)
-  articles?: Article[];           // Artículos (eventos de creación)
-  relatedShipmentId?: string;     // Envío relacionado (cambios)
-  errorMessage?: string;          // Mensaje de error (si aplica)
-}
-```
-### ShipmentEventType 
-
-Tipos de eventos:
-
-- `SHIPMENT_CREATED`
-- `MOVED_TO_PREPARED`
-- `MOVED_TO_IN_TRANSIT`
-- `MOVED_TO_DELIVERED`
-- `SHIPMENT_CANCELLED`
-- `RETURN_INITIATED`
-- `RETURN_COMPLETED`
-- `EXCHANGE_INITIATED`
-- `EXCHANGE_COMPLETED`
-- `SHIPMENT_ERROR`
-
 ### TrackingEntry
 
 Representa un registro de estado del envío.
@@ -357,13 +348,12 @@ Representa un registro de estado del envío.
   status: string;         // Estado en ese momento
   description: string;    // Descripción del cambio
   timestamp: Date;        // Cuándo ocurrió
-  actor?: string;         // Quién lo ejecutó
 }  
 ```
 ---
 ## Endpoints por Rol
 
-### 🔓 Públicos (Sin autenticación)
+### Públicos (Sin autenticación)
 
 ```http
 GET /health
@@ -420,104 +410,6 @@ GET /api/shipments/tracking/:id
 **Header requerido:**
 ```http
  Authorization: Bearer <token>
-```
----
-`GET /api/shipments/my-shipments`
-
-**Descripción**: Obtener los envíos creados por el usuario actual
-
-**Entradas**: Sin datos (query params opcionales):
-- `limit`: Número de resultados (default: 50, max: 100)
-- `skip`: Número de resultados a saltar (default: 0)
-
-**Salidas**: JSON con los envíos creados por el usuario actual.
-
-**Respuesta exitosa (200):**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "shipmentId": "ship_1234567890_abc123",
-      "orderId": "order_123",
-      "currentStatus": "IN_TRANSIT",
-      "tracking": [
-        {
-          "status": "PENDING",
-          "description": "Envío creado",
-          "timestamp": "2024-01-15T10:00:00.000Z",
-          "actor": "system"
-        },
-        {
-          "status": "PREPARED",
-          "description": "Paquete preparado",
-          "timestamp": "2024-01-15T11:00:00.000Z",
-          "actor": "admin_user"
-        }
-      ],
-      "lastUpdate": "2024-01-15T11:00:00.000Z"
-    }
-  ]
-}
-```
----
-`GET /api/shipments/:id`
-
-**Descripción**: Obtiene un envío específico
-**Rol requerido**: `user`
-
-**Entradas**: 
-- `id`: ID del envío
-
-**Salidas**: JSON con el envío creado por el usuario actual.
-```json
-{
-  "success": true,
-  "data": {
-    "id": "ship_123",
-    "orderId": "order_456",
-    "status": "DELIVERED",
-    "type": "NORMAL",
-    "customerInfo": {
-      "customerId": "user_789",
-      "name": "Juan Pérez",
-      "address": "Calle Falsa 123",
-      "city": "Buenos Aires",
-      "zipCode": "1234",
-      "phone": "+54 11 1234-5678"
-    },
-    "articles": [
-      {
-        "articleId": "art_001",
-        "quantity": 2,
-        "price": 1500
-      }
-    ],
-    "tracking": [ ... ],
-    "createdAt": "2024-01-15T10:00:00Z",
-    "updatedAt": "2024-01-16T18:00:00Z"
-  }
-}
-```
----
-`GET /api/shipments/order/:orderId`
-
-**Descripción**: Obtiene todos los envíos de una orden
-**Rol requerido**: `user`
-
-**Entradas**: 
-- `orderId`: ID de la orden
-
-**Salidas**: JSON con los envíos de la orden.
-```json
-{
-  "success": true,
-  "data": [
-    { /* envío 1 */ },
-    { /* envío 2 */ }
-  ],
-  "count": 2
-}
 ```
 ---
 `POST /api/shipments/:id/return`
@@ -609,65 +501,6 @@ Authorization: Bearer <JWT_TOKEN>
 ```
 El token debe contener `permissions: [admin]`.
 
---- 
-`POST /api/shipments`
-
-**Descripción**: Crea un nuevo envío manualmente
-**Rol requerido**: `admin`
-
-**Entradas** (body):
-```json
-{
-  "orderId": "order_123",
-  "customerInfo": {
-    "customerId": "user_456",
-    "name": "Juan Pérez",
-    "address": "Calle Falsa 123",
-    "city": "Buenos Aires",
-    "zipCode": "1234",
-    "phone": "+54 11 1234-5678"
-  },
-  "articles": [
-    {
-      "articleId": "art_001",
-      "quantity": 2,
-      "price": 1500
-    }
-  ],
-  "description": "Envío urgente"  // Opcional
-}
-```
-**Salidas**: JSON con el envío creado (201).
-```json
-{
-  "success": true,
-  "message": "Envío creado exitosamente",
-  "data": {
-    "id": "ship_123",
-    "orderId": "order_456",
-    "status": "PENDING",
-    "type": "NORMAL",
-    "customerInfo": {
-      "customerId": "user_789",
-      "name": "Juan Pérez",
-      "address": "Calle Falsa 123",
-      "city": "Buenos Aires",
-      "zipCode": "1234",
-      "phone": "+54 11 1234-5678"
-    },
-    "articles": [
-      {
-        "articleId": "art_001",
-        "quantity": 2,
-        "price": 1500
-      }
-    ],
-    "tracking": [ /* ... */ ],
-    "createdAt": "2024-01-15T10:00:00Z",
-    "updatedAt": "2024-01-15T10:00:00Z"
-  }
-}
-```
 ---
 `GET /api/shipments`
 
@@ -691,48 +524,7 @@ El token debe contener `permissions: [admin]`.
   }
 }
 ```
----
-`GET /api/shipments/:id/events`
 
-**Descripción**: Obtiene el historial completo de eventos de un envío desde el Event Store (Admin).
-**Rol requerido**: `admin`
-
-**Entradas**: 
-- `id`: ID del envío
-
-**Salidas**: JSON con el envío creado (200)
-```json
-{
-  "success": true,
-  "data": {
-    "shipmentId": "ship_1234567890_abc123",
-    "eventCount": 5,
-    "events": [
-      {
-        "eventId": "evt_123",
-        "eventType": "SHIPMENT_CREATED",
-        "shipmentId": "ship_1234567890_abc123",
-        "orderId": "order_123",
-        "timestamp": "2024-01-15T10:00:00.000Z",
-        "actor": "system",
-        "newStatus": "PENDING",
-        "customerInfo": { /* ... */ },
-        "articles": [ /* ... */ ]
-      },
-      {
-        "eventId": "evt_124",
-        "eventType": "MOVED_TO_PREPARED",
-        "shipmentId": "ship_1234567890_abc123",
-        "timestamp": "2024-01-15T11:00:00.000Z",
-        "actor": "admin_user",
-        "previousStatus": "PENDING",
-        "newStatus": "PREPARED"
-      }
-      /* ... más eventos ... */
-    ]
-  }
-}
-```
 --- 
 `POST /api/shipments/:id/prepare`
 
@@ -931,6 +723,69 @@ El token debe contener `permissions: [admin]`.
 **Errores posibles**:
 - `400`: El envío no está en estado `EXCHANGE_PROCESSED`
 
+--- 
+### Endpoints de RabbitMQ (Event: PAYMENT_APPROVED)
+
+`POST /api/shipments`
+
+**Descripción**: Crea un nuevo envío manualmente
+**Rol requerido**: `admin`
+
+**Entradas** (body):
+```json
+{
+  "orderId": "order_123",
+  "customerInfo": {
+    "customerId": "user_456",
+    "name": "Juan Pérez",
+    "address": "Calle Falsa 123",
+    "city": "Buenos Aires",
+    "zipCode": "1234",
+    "phone": "+54 11 1234-5678"
+  },
+  "articles": [
+    {
+      "articleId": "art_001",
+      "quantity": 2,
+      "price": 1500
+    }
+  ],
+  "description": "Envío urgente"  // Opcional
+}
+```
+**Salidas**: JSON con el envío creado (201).
+```json
+{
+  "success": true,
+  "message": "Envío creado exitosamente",
+  "data": {
+    "id": "ship_123",
+    "orderId": "order_456",
+    "status": "PENDING",
+    "type": "NORMAL",
+    "customerInfo": {
+      "customerId": "user_789",
+      "name": "Juan Pérez",
+      "address": "Calle Falsa 123",
+      "city": "Buenos Aires",
+      "zipCode": "1234",
+      "phone": "+54 11 1234-5678"
+    },
+    "articles": [
+      {
+        "articleId": "art_001",
+        "quantity": 2,
+        "price": 1500
+      }
+    ],
+    "tracking": [ /* ... */ ],
+    "createdAt": "2024-01-15T10:00:00Z",
+    "updatedAt": "2024-01-15T10:00:00Z"
+  }
+  
+}
+```
+
 ---
 
 ## Interfaz RabbitMQ
@@ -958,15 +813,6 @@ Cola 1: `delivery.payment_approved`
 **Durable**: True
 **Consumer**: `PaymentApprovedConsumer`
 **Proposito**: Recibe una notificación de que el pago de una orden ha sido aprobado para crear envíos automaticamente.
-
----
-Cola 2: `delivery.order_refund`
-
-**Vinculada a:** `ecommerce_events`
-**Routing key**: `order.refund.processed`
-**Durable**: True
-**Consumer**: `OrderRefundConsumer`
-**Proposito**: Recibe confirmaciones de reembolsos de ordenes y crea envíos de devoluciones.
 
 ---
 Cola 3: `delivery.logout`
@@ -1031,45 +877,8 @@ Cola 3: `delivery.logout`
 7. Emite evento `SHIPPING_CREATED` a Exchange
 
 ---
-#### 2. Evento 2: `ORDER_REFUND`
 
-**Origen**: Microservicio Orders.
-**Exchange**: `ecommerce_events`
-**Routing key**: `order.refund.processed`
-**Cola que escucha**: `delivery.order_refund`
-**Consumer**: `OrderRefundConsumer`
-
-**Estructura esperada del mensaje**:
-```json
-{
-  "type": "ORDER_REFUND",
-  "orderId": "order_456",
-  "customerId": "user_789",
-  "refundAmount": 3000,
-  "reason": "Cancelación de orden",
-  "timestamp": "2024-01-15T11:00:00.000Z"
-}
-```
-
-**Validaciones**:
-- El `orderId` Requerido, string no vacío.
-**Errores posibles**:
-- `400`: `Mensaje inválido: falta campo 'orderId'`
-
-**Acciones al recibir mensaje**:
-1. Valida el mensaje
-2. Busca envios relacionados con el `orderId`
-3. Evalua el estado de cada envío
-  * `PENDING/PREPARED`: Puede ser cancelado directamente
-  * `IN_TRANSIT`: Se gestionará devolución al llegar
-  * `DELIVERED`: Se debe iniciar devolución
-  * `RETURNING/RETURNED`: Ya en proceso o completado
-  * `CANCELLED`: Ya cancelado
-4. Registra evento de refund en tracking
-5. NO realiza acciones automaticas, solo registra para auditoria, tampoco emite eventos.
-
----
-#### 3. Evento 3: `LOGOUT`
+#### 2. Evento 2: `LOGOUT`
 
 **Origen**: Microservicio Auth.
 **Exchange**: `ecommerce_events`
@@ -1365,78 +1174,3 @@ CU03 - Pasar a En Camino,
 ```
 **Consumidores**: Orders.
 
----
-### 5. Manejo de Errores y Resiliencia
-
-#### 1. Politica de Reintentos 
-
-Todos los consumers implementan reintentos automaticos. Maximo 3 intentos por mensaje. 
-* Se utiliza header `x-retry-count` para controlar el número de reintentos.
-
-#### 2. Idempotencia
-
-El sistema garantiza idempotencia mediante:
-1. Event Store: `eventId` como clave primaria 
-2. Inserción: `insertMany` con `ordered: false` ignora duplicados
-3. Codigo de error: 11000: Manejo especifico de claves duplicadas sin lanzar error. 
-
----
-
-### 6. Diagrama de Flujo de Eventos
-```
-┌─────────────┐  PAYMENT_APPROVED   ┌──────────────┐
-│   Orders    │─────────────────────→│   Delivery   │
-│  Service    │                      │   Service    │
-└─────────────┘                      └──────────────┘
-                                            │
-                                            │ SHIPPING_CREATED
-                                            │ SHIPPING_STATE_CHANGED
-                                            │ SHIPPING_DELIVERED
-                                            │ SHIPPING_CANCELLED
-                                            │ RETURN_INITIATED
-                                            │ RETURN_COMPLETED
-                                            │ EXCHANGE_INITIATED
-                                            │ EXCHANGE_COMPLETED
-                                            ↓
-┌─────────────┐                      ┌──────────────┐
-│    Stats    │←─────────────────────│   RabbitMQ   │
-│  Service    │                      │   Exchange   │
-└─────────────┘                      └──────────────┘
-                                            ↓
-┌─────────────┐                      ┌──────────────┐
-│   Orders    │←─────────────────────│  (routing)   │
-│  Service    │  Eventos críticos    └──────────────┘
-└─────────────┘  (cancelación, 
-                  devolución, etc)
-
-
-┌─────────────┐  ORDER_REFUND        ┌──────────────┐
-│   Orders    │─────────────────────→│   Delivery   │
-│  Service    │                      │   Service    │
-└─────────────┘                      └──────────────┘
-
-
-┌─────────────┐  LOGOUT              ┌──────────────┐
-│    Auth     │─────────────────────→│   Delivery   │
-│  Service    │                      │   Service    │
-└─────────────┘                      └──────────────┘
-```
-
----
-### 7. Tabla de Resumen de Eventos
-
-| Evento | Routing Key | Produce/Consume | Prioridad | Caso de Uso | Crítico |
-|--------|-------------|-----------------|-----------|-------------|---------|
-| `PAYMENT_APPROVED` | `order.payment.approved` | Consume | - | CU01 | ⚠️ Sí |
-| `SHIPPING_CREATED` | `shipping.created` | Produce | 0 | CU01 | No |
-| `SHIPPING_STATE_CHANGED` | `shipping.state.changed` | Produce | 0 | CU02, CU03 | No |
-| `SHIPPING_DELIVERED` | `shipping.delivered` | Produce | 5 | CU04 | ⚠️ Sí |
-| `SHIPPING_CANCELLED` | `shipping.cancelled` | Produce | 5 | CU05 | ⚠️ Sí |
-| `RETURN_INITIATED` | `shipping.return.initiated` | Produce | 6 | CU06 | No |
-| `RETURN_COMPLETED` | `shipping.return.completed` | Produce | 7 | CU07 | ⚠️⚠️ Crítico |
-| `EXCHANGE_INITIATED` | `shipping.exchange.initiated` | Produce | 6 | CU08 | No |
-| `EXCHANGE_COMPLETED` | `shipping.exchange.completed` | Produce | 5 | CU08 | No |
-| `EXCHANGE_FINALIZED` | `shipping.exchange.completed.final` | Produce | 7 | CU09 | ⚠️ Sí |
-| `ORDER_REFUND` | `order.refund.processed` | Consume | - | - | No |
-| `LOGOUT` | `auth.logout` | Consume | - | - | No |
-| `SHIPPING_ERROR` | `shipping.error` | Produce | 9 | Todos | ⚠️⚠️ Crítico |
