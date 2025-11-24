@@ -712,10 +712,9 @@ El token debe contener `permissions: [admin]`.
     },
     "newShipment": {
       "id": "ship_9876543210_xyz789",
-      "status": "PREPARED",
+      "status": "PENDING",
       /* ... */
-    },
-    "nextAction": "already_processing"
+    }
   }
 }
 ```
