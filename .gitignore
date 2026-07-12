@@ -39,3 +39,6 @@ coverage/
 tmp/
 temp/
 *.tmp
+
+ecommerce-nmarsollier-docs.md
+rabbitmq-amqp-guia-estudio.md
