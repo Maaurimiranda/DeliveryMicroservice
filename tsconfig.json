@@ -16,6 +16,6 @@
     "sourceMap": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": ["src/**/*", "srcOld/domain", "srcOld/infrastructure", "srcOld/interfaces", "srcOld/config", "srcOld/application"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "srcOld"]
 }

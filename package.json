@@ -1,13 +1,13 @@
 {
   "name": "delivery-service",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "dist/rest/server.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon --watch src --exec ts-node src/server.ts",
+    "dev": "tsx watch src/rest/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
-    "start:dev": "ts-node src/server.ts",
+    "start": "node dist/rest/server.js",
+    "start:dev": "tsx src/rest/server.ts",
     "lint": "echo 'No linter configured'",
     "test": "echo 'No tests configured'"
   },
