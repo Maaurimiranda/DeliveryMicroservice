@@ -1,0 +1,25 @@
+# Solo el delivery service. NO incluye infra.
+# Se conecta a la red "ecommerce" que crea docker-compose.ecommerce.yml (levantá eso primero, una vez).
+# Este es el compose que redeployás continuamente:
+#   docker compose up -d --build
+services:
+  delivery:
+    build: .
+    container_name: delivery-service
+    ports:
+      - "3005:3005"
+    environment:
+      PORT: "3005"
+      NODE_ENV: production
+      MONGODB_URI: mongodb://mongo:27017/delivery_service
+      MONGODB_DB_NAME: delivery_service
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      RABBITMQ_EXCHANGE: ecommerce_events
+    networks:
+      - ecommerce
+
+# Red externa: la crea el stack de nmarsollier. Debe existir antes de levantar delivery.
+networks:
+  ecommerce:
+    external: true
+    name: ecommerce

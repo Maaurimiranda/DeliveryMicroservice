@@ -41,4 +41,5 @@ temp/
 *.tmp
 
 /docs
+/srcOld
 CLAUDE.md
