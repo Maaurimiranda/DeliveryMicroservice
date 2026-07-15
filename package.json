@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/rest/server.ts",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/rest/server.js",
     "start:dev": "tsx src/rest/server.ts",
     "lint": "echo 'No linter configured'",
-    "test": "echo 'No tests configured'"
+    "test": "tsx --test \"tests/**/*.test.ts\"",
+    "test:watch": "tsx --test --watch \"tests/**/*.test.ts\""
   },
   "keywords": [
     "delivery",
