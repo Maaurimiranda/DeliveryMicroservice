@@ -9,8 +9,7 @@ export const env = {
   mongoUri: process.env.MONGODB_URI ?? "mongodb://localhost:27017/delivery_service",
   mongoDbName: process.env.MONGODB_DB_NAME ?? "delivery_service",
   rabbitUrl: process.env.RABBITMQ_URL ?? "amqp://guest:guest@localhost:5672",
-  rabbitExchange: process.env.RABBITMQ_EXCHANGE ?? "ecommerce_events",
-  jwtSecret: process.env.JWT_SECRET,
+  rabbitExchange: process.env.RABBITMQ_EXCHANGE ?? "shipping_events",
   authServiceUrl: process.env.AUTH_SERVICE_URL ?? "http://localhost:3000",
   ordersServiceUrl: process.env.ORDERS_SERVICE_URL ?? "http://localhost:3004",
 };

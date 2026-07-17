@@ -26,6 +26,7 @@ export type CreateShipmentInput = { // CU01: datos necesarios para crear un env�
   readonly type?: ShipmentType;
   readonly relatedShipmentId?: string;
   readonly actor?: string;
+  readonly description?: string; // Descripción del primer tracking entry (H6)
 };
 
 export function generateShipmentId(): string {
@@ -70,7 +71,7 @@ export function createShipment(input: CreateShipmentInput): Shipment {
     tracking: [
       {
         status: ShipmentStatus.PENDING,
-        description: "Envío registrado, pendiente de preparación",
+        description: input.description ?? "Envío registrado, pendiente de preparación",
         timestamp: now,
         actor,
       },
@@ -136,8 +137,18 @@ export function startExchange(shipment: Shipment, actor: string, reason: string)
   return transition(shipment, ShipmentStatus.RETURNING, actor, `Cambio iniciado: ${reason}`);
 }
 
-// CU09
+// CU09: solo un original con cambio iniciado (relatedShipmentId) puede terminar en
+// EXCHANGE_PROCESSED; una devolución pura solo puede completarse como RETURNED.
 export function completeExchange(shipment: Shipment, actor: string): Shipment {
+  if (!canTransition(shipment.status, ShipmentStatus.EXCHANGE_PROCESSED)) {
+    throw new InvalidTransitionError(shipment.id, shipment.status, ShipmentStatus.EXCHANGE_PROCESSED);
+  }
+  if (shipment.relatedShipmentId === undefined) {
+    throw new InvalidShipmentDataError(
+      "relatedShipmentId",
+      `El envío ${shipment.id} no tiene un envío de cambio vinculado: una devolución no puede completarse como cambio.`
+    );
+  }
   return transition(shipment, ShipmentStatus.EXCHANGE_PROCESSED, actor, "Cambio procesado");
 }
 

@@ -14,7 +14,9 @@ services:
       MONGODB_URI: mongodb://mongo:27017/delivery_service
       MONGODB_DB_NAME: delivery_service
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
-      RABBITMQ_EXCHANGE: ecommerce_events
+      RABBITMQ_EXCHANGE: shipping_events
+      AUTH_SERVICE_URL: http://auth:3000
+      ORDERS_SERVICE_URL: http://orders:3004
     networks:
       - ecommerce
 

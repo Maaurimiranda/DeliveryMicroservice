@@ -32,7 +32,7 @@ const customerInfo: CustomerInfo = {
   phone: "+54 351 555-0000",
 };
 
-const articles: readonly Article[] = [{ articleId: "art_001", quantity: 2, price: 150.5 }];
+const articles: readonly Article[] = [{ articleId: "art_001", quantity: 2 }];
 
 function nuevoEnvio(): Shipment {
   return createShipment({ orderId: "order_123", customerInfo, articles });
@@ -56,7 +56,7 @@ function envioEn(status: ShipmentStatus): Shipment {
   if (status === ShipmentStatus.RETURNING) return s;
 
   if (status === ShipmentStatus.RETURNED) return completeReturn(s, "admin_user");
-  return completeExchange(s, "admin_user");
+  return completeExchange(linkRelatedShipment(s, "ship_cambio_test"), "admin_user");
 }
 
 describe("createShipment (CU01)", () => {
@@ -77,6 +77,23 @@ describe("createShipment (CU01)", () => {
     assert.equal(s.tracking[0]?.status, ShipmentStatus.PENDING);
     assert.equal(s.tracking[0]?.actor, "system");
     assert.ok(s.tracking[0]?.timestamp instanceof Date);
+  });
+
+  it("usa la descripción provista en la primera entrada de tracking (H6)", () => {
+    const s = createShipment({
+      orderId: "order_123",
+      customerInfo,
+      articles,
+      description: "Envío urgente",
+    });
+
+    assert.equal(s.tracking[0]?.description, "Envío urgente");
+  });
+
+  it("usa la descripción por defecto si no se provee", () => {
+    const s = nuevoEnvio();
+
+    assert.equal(s.tracking[0]?.description, "Envío registrado, pendiente de preparación");
   });
 
   it("rechaza orderId vacío", () => {
@@ -251,11 +268,39 @@ describe("cambio (CU08 / CU09)", () => {
     );
   });
 
-  it("se procesa RETURNING → EXCHANGE_PROCESSED", () => {
+  it("se procesa RETURNING → EXCHANGE_PROCESSED cuando el original tiene relatedShipmentId", () => {
+    const original = linkRelatedShipment(envioEn(ShipmentStatus.RETURNING), "ship_nuevo");
+
     assert.equal(
-      completeExchange(envioEn(ShipmentStatus.RETURNING), "admin_user").status,
+      completeExchange(original, "admin_user").status,
       ShipmentStatus.EXCHANGE_PROCESSED
     );
+  });
+
+  it("completeExchange rechaza un envío en RETURNING sin relatedShipmentId (devolución pura)", () => {
+    assert.throws(
+      () => completeExchange(envioEn(ShipmentStatus.RETURNING), "admin_user"),
+      (err: unknown) => {
+        assert.ok(err instanceof InvalidShipmentDataError);
+        assert.equal(err.field, "relatedShipmentId");
+        assert.equal(err.code, "INVALID_SHIPMENT_DATA");
+        return true;
+      }
+    );
+  });
+
+  it("completeExchange fuera de RETURNING lanza InvalidTransitionError aunque falte el vínculo", () => {
+    assert.throws(
+      () => completeExchange(envioEn(ShipmentStatus.DELIVERED), "admin_user"),
+      InvalidTransitionError
+    );
+  });
+
+  it("completeReturn permite RETURNED sobre un original de cambio (producto dañado, CU09)", () => {
+    const original = startExchange(envioEn(ShipmentStatus.DELIVERED), "user_456", "talle equivocado");
+    const vinculado = linkRelatedShipment(original, "ship_nuevo");
+
+    assert.equal(completeReturn(vinculado, "admin_user").status, ShipmentStatus.RETURNED);
   });
 
   it("crea un segundo envío EXCHANGE en PENDING vinculado al original", () => {

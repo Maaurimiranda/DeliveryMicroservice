@@ -16,8 +16,6 @@
     "delivery",
     "microservice",
     "ddd",
-    "event-sourcing",
-    "cqrs",
     "typescript"
   ],
   "author": "",
@@ -25,25 +23,18 @@
   "description": "",
   "dependencies": {
     "amqplib": "^0.10.9",
-    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
-    "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.20.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/amqplib": "^0.10.7",
-    "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/mongodb": "^4.0.6",
     "@types/node": "^24.9.1",
-    "nodemon": "^3.1.10",
-    "ts-node": "^10.9.2",
     "tsx": "^4.7.0",
     "typescript": "^5.9.3"
   }

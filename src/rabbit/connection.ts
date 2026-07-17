@@ -8,7 +8,7 @@ type RabbitChannel = Awaited<ReturnType<RabbitConnection["createChannel"]>>;
 let connection: RabbitConnection | null = null;
 let channel: RabbitChannel | null = null;
 
-// Conecta a RabbitMQ y asegura el exchange compartido del ecommerce.
+// Conecta a RabbitMQ y asegura el exchange topic propio de publicación (shipping_events).
 export async function connectRabbit(): Promise<void> {
   if (connection) return;
 
