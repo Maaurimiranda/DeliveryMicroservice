@@ -1,5 +1,6 @@
 import { MongoClient, Db } from "mongodb";
 import { env } from "../tools/environment.js";
+import { ensureIndexes } from "./indexes.js";
 
 let client: MongoClient | null = null;
 let db: Db | null = null;
@@ -11,6 +12,7 @@ export async function connectMongo(): Promise<Db> {
   client = new MongoClient(env.mongoUri);
   await client.connect();
   db = client.db(env.mongoDbName);
+  await ensureIndexes(db);
   console.log(`Conectado a MongoDB: ${env.mongoDbName}`);
   return db;
 }

@@ -1,17 +1,5 @@
-# Stack completo de nmarsollier: infra (Mongo, RabbitMQ, Redis, Fluent) + microservicios Go.
-# Es dueño de la red "ecommerce". Se levanta UNA sola vez; no versionamos estos servicios.
-#
-# Requisito previo (una sola vez): construir las imágenes de los servicios Go con
-#   ./scripts/build-nmarsollier-images.ps1
-# (compose las referencia por tag con `image:`, NO las buildea — así evitamos el bug de
-#  Docker Compose/bake en Windows con `build.context` apuntando a una URL de git).
-#
-# Luego:
-#   docker compose -f docker-compose.ecommerce.yml up -d
-#
-# Cada servicio Go lee RABBIT_URL / MONGO_URL (ver docs/ordersgo-analysis.md) y usa su propia
-# DB lógica (orders, catalog, ...) en el mismo Mongo. Si tenés contenedores standalone con estos
-# nombres (ec-mongo, prod-auth-go, ...), pará esos antes: chocan nombres y puertos.
+# Stack completo: infra (Mongo, RabbitMQ, Redis, Fluent) + microservicios Go.
+
 services:
   mongo:
     image: mongo:6.0

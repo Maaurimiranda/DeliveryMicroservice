@@ -1,6 +1,4 @@
 # Solo el delivery service. NO incluye infra.
-# Se conecta a la red "ecommerce" que crea docker-compose.ecommerce.yml (levantá eso primero, una vez).
-# Este es el compose que redeployás continuamente:
 #   docker compose up -d --build
 services:
   delivery:
