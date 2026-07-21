@@ -1,5 +1,12 @@
 # Solo el delivery service. NO incluye infra.
 #   docker compose up -d --build
+
+# Red externa: la crea el stack de nmarsollier. Debe existir antes de levantar delivery.
+networks:
+  ecommerce:
+    external: true
+    name: ecommerce
+
 services:
   delivery:
     build: .
@@ -18,8 +25,3 @@ services:
     networks:
       - ecommerce
 
-# Red externa: la crea el stack de nmarsollier. Debe existir antes de levantar delivery.
-networks:
-  ecommerce:
-    external: true
-    name: ecommerce

@@ -4,11 +4,6 @@ services:
   mongo:
     image: mongo:6.0
     container_name: ec-mongo
-    # El healthcheck (mongosh cada 10s) abre un pool de ~5 conexiones y cada una loguea
-    # "client metadata", inundando Docker Desktop. --quiet corta los accepted/ended; --logpath
-    # manda TODO el log de mongod a un archivo dentro del contenedor, dejando el stdout (lo que
-    # ve Docker Desktop) limpio. Para leer logs de mongo: docker exec ec-mongo cat /var/log/mongod.log
-    command: ["mongod", "--quiet", "--logpath", "/var/log/mongod.log", "--logappend"]
     ports:
       - "27017:27017"
     volumes:
