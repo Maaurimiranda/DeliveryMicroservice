@@ -1,5 +1,5 @@
 import { MongoClient, Db } from "mongodb";
-import { env } from "../tools/environment.js";
+import { env } from "../../tools/environment.js";
 import { ensureIndexes } from "./indexes.js";
 
 let client: MongoClient | null = null;

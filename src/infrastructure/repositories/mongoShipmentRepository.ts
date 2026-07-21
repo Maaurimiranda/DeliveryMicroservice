@@ -1,6 +1,6 @@
 import type { Shipment } from "../../domain/entities/shipment.js";
 import type { ShipmentRepository } from "../../domain/repositories/shipmentRepository.js";
-import { getDb } from "../mongo.js";
+import { getDb } from "../mongo/mongo.js";
 import { type ShipmentDocument, toDocument, toDomain } from "../schemas/shipmentSchema.js";
 
 const collection = () => getDb().collection<ShipmentDocument>("shipments");

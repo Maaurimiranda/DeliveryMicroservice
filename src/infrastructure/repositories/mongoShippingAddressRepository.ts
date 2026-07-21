@@ -1,6 +1,6 @@
 import type { ShippingAddress } from "../../domain/entities/shippingAddress.js";
 import type { ShippingAddressRepository } from "../../domain/repositories/shippingAddressRepository.js";
-import { getDb } from "../mongo.js";
+import { getDb } from "../mongo/mongo.js";
 import {
   type ShippingAddressDocument,
   toDocument,
