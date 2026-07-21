@@ -182,7 +182,7 @@ Flujo:
 | **Actor**    | User |
 | **Descripción**   | El cliente solicita cambiar un producto. Se crean DOS procesos paralelos:
 1. Envío original: El producto viaja del cliente al almacén (devolución)
-2. Nuevo envío: Se prepara un nuevo envío con el producto de cambio
+2. Nuevo envío: Se prepara un nuevo envío con los mismos artículos del original (el motivo va en `description`)
 Ambos envíos quedan vinculados mediante `relatedShipmentId`. |
 | **Evento emitido**| `EXCHANGE_INITIATED` → Routing key: `shipping.exchange.initiated` |
 | **Transición de estado**| `DELIVERED`  → `RETURNING`. Se crea un envio de tipo `EXCHANGE` con estado `PENDING`|
@@ -559,10 +559,10 @@ GET /api/shipments/tracking/:id
 **Entradas** (Params): 
 - `id`: ID del envío
 
-**Entradas** (body opcional):
+**Entradas** (body):
 ```json
 {
-  "reason": "Producto defectuoso",  // Opcional
+  "reason": "Producto defectuoso",  // Requerido: motivo de la devolución
   "description": "El producto llegó dañado"  // Opcional
 }
 ```
@@ -594,19 +594,13 @@ GET /api/shipments/tracking/:id
 **Entradas** (Params): 
 - `id`: ID del envío
 
-**Entradas** (body opcional):
+**Entradas** (body):
 ```json
 {
-  "newArticles": [
-    {
-      "articleId": "article_999",
-      "quantity": 2
-    }
-  ],
-  "reason": "Cambio de talla",
-  "description": "Quiero cambiar por talla M"
+  "description": "Cambio de talle: necesito talle 39"  // Requerido: motivo del cambio
 }
 ```
+**Nota**: el nuevo envío de cambio lleva **los mismos artículos** del original; no se envían artículos nuevos. El `description` detalla el motivo.
 
 **Salidas**: JSON con el envío devuelto.
 ```json
@@ -768,7 +762,7 @@ El usuario devuelto por Auth (`GET /users/current`) debe incluir `"admin"` en su
 **Entrada** (body):
 ```json
 {
-  "reason": "Cliente canceló la orden",  // Opcional
+  "reason": "Cliente canceló la orden",  // Requerido: motivo de la cancelación
   "description": "Cancelación solicitada por cliente"  // Opcional
 }
 ```
@@ -800,7 +794,7 @@ El usuario devuelto por Auth (`GET /users/current`) debe incluir `"admin"` en su
 **Entrada** (body):
 ```json
 {
-  "productCondition": "good",  // "good" | "damaged" | "defective" (opcional)
+  "productCondition": "good",  // Requerido: "good" | "damaged" | "defective"
   "notes": "Producto recibido en buen estado",  // Opcional
   "description": "Devolución procesada"  // Opcional
 }
@@ -835,7 +829,7 @@ El usuario devuelto por Auth (`GET /users/current`) debe incluir `"admin"` en su
 **Entrada** (body):
 ```json
 {
-  "productCondition": "good",  // "good" | "damaged" | "defective" (opcional)
+  "productCondition": "good",  // Requerido: "good" | "damaged" | "defective"
   "notes": "Producto recibido en buen estado",  // Opcional
   "description": "Cambio procesado"  // Opcional
 }
@@ -864,64 +858,8 @@ El usuario devuelto por Auth (`GET /users/current`) debe incluir `"admin"` en su
 **Errores posibles**:
 - `400`: El envío original no está en estado `RETURNING` o no tiene envío de cambio vinculado (`relatedShipmentId`)
 
---- 
-`POST /api/shipments`
-
-**Descripción**: Crea un nuevo envío manualmente
-**Rol requerido**: `admin`
-
-**Entradas** (body):
-```json
-{
-  "orderId": "order_123",
-  "customerInfo": {
-    "customerId": "user_456",
-    "name": "Juan Pérez",
-    "address": "Calle Falsa 123",
-    "city": "Buenos Aires",
-    "zipCode": "1234",
-    "phone": "+54 11 1234-5678"
-  },
-  "articles": [
-    {
-      "articleId": "art_001",
-      "quantity": 2
-    }
-  ],
-  "description": "Envío urgente"  // Opcional, se usa como descripción del primer tracking entry
-}
-```
-**Salidas**: JSON con el envío creado (201).
-```json
-{
-  "success": true,
-  "message": "Envío creado exitosamente",
-  "data": {
-    "id": "ship_123",
-    "orderId": "order_456",
-    "status": "PENDING",
-    "type": "NORMAL",
-    "customerInfo": {
-      "customerId": "user_789",
-      "name": "Juan Pérez",
-      "address": "Calle Falsa 123",
-      "city": "Buenos Aires",
-      "zipCode": "1234",
-      "phone": "+54 11 1234-5678"
-    },
-    "articles": [
-      {
-        "articleId": "art_001",
-        "quantity": 2
-      }
-    ],
-    "tracking": [ /* ... */ ],
-    "createdAt": "2024-01-15T10:00:00Z",
-    "updatedAt": "2024-01-15T10:00:00Z"
-  }
-  
-}
-```
+> **Nota**: no existe creación manual de envíos por HTTP. Un `Shipment` solo nace al escuchar
+> el evento `order_placed` (CU01). No hay endpoint `POST /api/shipments`.
 
 ---
 
@@ -1033,7 +971,7 @@ Los 9 eventos se publican en el exchange **`shipping_events`** (topic). Todos lo
 #### 1. Evento 1: `SHIPPING_CREATED`
 
 **Routing key**: `shipping.created`
-**Descripcion**: Se emite cuando se crea un nuevo envío, ya sea automáticamente por `order_placed` o manualmente por admin. Lo dispara el CU01.
+**Descripcion**: Se emite cuando se crea un nuevo envío automáticamente al recibir `order_placed`. Lo dispara el CU01 (no hay creación manual).
 
 **Estructura del mensaje**:
 ```json

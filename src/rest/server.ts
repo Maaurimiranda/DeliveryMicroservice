@@ -3,6 +3,7 @@ import { env } from "../tools/environment.js";
 import { connectMongo, closeMongo } from "../infrastructure/mongo/mongo.js";
 import { connectRabbit, closeRabbit } from "../rabbit/connection.js";
 import { startOrderPlacedConsumer } from "../rabbit/consumers/orderPlacedConsumer.js";
+import { startAuthConsumer } from "../rabbit/consumers/authConsumer.js";
 import { mongoShipmentRepository } from "../infrastructure/repositories/mongoShipmentRepository.js";
 import { mongoShippingAddressRepository } from "../infrastructure/repositories/mongoShippingAddressRepository.js";
 import { rabbitShippingEventPublisher } from "../rabbit/rabbitShippingEventPublisher.js";
@@ -17,6 +18,9 @@ async function main() {
     shipmentRepo: mongoShipmentRepository,
     publisher: rabbitShippingEventPublisher,
   });
+
+  // Logout: consume el fanout `auth` e invalida el cache de tokens.
+  await startAuthConsumer();
 
   const app = createApp();
   const server = app.listen(env.port, () => {

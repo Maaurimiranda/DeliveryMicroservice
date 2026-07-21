@@ -1,9 +1,19 @@
+import type { Filter } from "mongodb";
 import type { Shipment } from "../../domain/entities/shipment.js";
-import type { ShipmentRepository } from "../../domain/repositories/shipmentRepository.js";
+import type {
+  Page,
+  ShipmentFilter,
+  ShipmentRepository,
+} from "../../domain/repositories/shipmentRepository.js";
 import { getDb } from "../mongo/mongo.js";
 import { type ShipmentDocument, toDocument, toDomain } from "../schemas/shipmentSchema.js";
 
 const collection = () => getDb().collection<ShipmentDocument>("shipments");
+
+// Ownership: el dueño del envío es customerInfo.customerId (snapshot del userId al crear).
+function toMongoFilter(filter: ShipmentFilter): Filter<ShipmentDocument> {
+  return filter.userId ? { "customerInfo.customerId": filter.userId } : {};
+}
 
 export const mongoShipmentRepository: ShipmentRepository = {
   async save(shipment: Shipment): Promise<void> {
@@ -15,9 +25,17 @@ export const mongoShipmentRepository: ShipmentRepository = {
     return doc ? toDomain(doc) : null;
   },
 
-  async findAll(limit: number, skip: number): Promise<Shipment[]> {
-    const docs = await collection().find().skip(skip).limit(limit).toArray();
+  async findAll(filter: ShipmentFilter, page: Page): Promise<Shipment[]> {
+    const docs = await collection()
+      .find(toMongoFilter(filter))
+      .skip(page.skip)
+      .limit(page.limit)
+      .toArray();
     return docs.map(toDomain);
+  },
+
+  async count(filter: ShipmentFilter): Promise<number> {
+    return collection().countDocuments(toMongoFilter(filter));
   },
 
   async update(shipment: Shipment): Promise<void> {

@@ -54,6 +54,9 @@ function fakeShipmentRepo(saved: Shipment[], behavior: SaveBehavior = "ok"): Shi
     async findAll() {
       return [];
     },
+    async count() {
+      return saved.length;
+    },
     async update() {},
   };
 }
@@ -75,6 +78,14 @@ function fakePublisher(calls: PublisherCalls): ShippingEventPublisher {
     async shippingError(info, correlationId) {
       calls.errors.push({ info, correlationId });
     },
+    // CU01 solo usa shippingCreated/shippingError; el resto son no-ops para el fake.
+    async shippingStateChanged() {},
+    async shippingDelivered() {},
+    async shippingCancelled() {},
+    async returnInitiated() {},
+    async returnCompleted() {},
+    async exchangeInitiated() {},
+    async exchangeFinalized() {},
   };
 }
 

@@ -2,8 +2,9 @@ import express, { Express } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { env } from "../tools/environment.js";
+import { addressRoutes } from "./routes/addressRoutes.js";
 
-// Arma la aplicación Express. Las rutas de /api/shipments se montan más adelante.
+// Arma la aplicación Express.
 export function createApp(): Express {
   const app = express();
 
@@ -19,6 +20,9 @@ export function createApp(): Express {
       environment: env.nodeEnv,
     });
   });
+
+  // /address debe ir antes de futuras rutas /:id (Etapa 5) para no ser capturado como id.
+  app.use("/api/shipments", addressRoutes);
 
   return app;
 }
