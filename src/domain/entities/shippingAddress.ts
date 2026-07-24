@@ -1,19 +1,11 @@
-// Agregado propio de Delivery: la dirección de envío de un usuario (relación 1:1).
-// Ningún otro microservicio del ecosistema almacena direcciones. Al crear un envío
-// se copia como snapshot inmutable en CustomerInfo.
+// Value Object: la dirección a la que se despacha un envío concreto. Snapshot inmutable
+// copiado desde CustomerInfo al momento de crear el Shipment: cambios posteriores en los
+// datos del cliente no afectan envíos ya creados.
 export type ShippingAddress = {
-  readonly userId: string;
+  readonly customerId: string;
   readonly name: string;
   readonly address: string;
   readonly city: string;
   readonly zipCode: string;
   readonly phone: string;
-  readonly updatedAt: Date;
 };
-
-// El dominio (no el repositorio) decide el timestamp, igual que createShipment.
-export function createShippingAddress(
-  input: Omit<ShippingAddress, "updatedAt">
-): ShippingAddress {
-  return { ...input, updatedAt: new Date() };
-}

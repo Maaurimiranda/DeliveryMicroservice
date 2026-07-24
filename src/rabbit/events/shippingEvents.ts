@@ -1,8 +1,8 @@
 import type { Article } from "../../domain/entities/article.js";
-import type { CustomerInfo } from "../../domain/entities/customerInfo.js";
 import type { Shipment } from "../../domain/entities/shipment.js";
 import { ShipmentStatus } from "../../domain/entities/shipmentStatus.js";
 import type { ShipmentType } from "../../domain/entities/shipmentType.js";
+import type { ShippingAddress } from "../../domain/entities/shippingAddress.js";
 import type {
   ProductCondition,
   ShippingErrorInfo,
@@ -29,7 +29,7 @@ export type ShippingCreatedMessage = {
   orderId: string;
   status: ShipmentStatus;
   typeShipment: ShipmentType;
-  customerInfo: CustomerInfo;
+  shippingAddress: ShippingAddress;
   articles: readonly Article[];
   timestamp: string;
 };
@@ -125,7 +125,7 @@ export function buildShippingCreated(shipment: Shipment): ShippingCreatedMessage
     orderId: shipment.orderId,
     status: shipment.status,
     typeShipment: shipment.type,
-    customerInfo: shipment.customerInfo,
+    shippingAddress: shipment.shippingAddress,
     articles: shipment.articles,
     timestamp: shipment.createdAt.toISOString(),
   };

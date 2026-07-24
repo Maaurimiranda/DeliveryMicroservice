@@ -1,8 +1,8 @@
 import type { Article } from "../entities/article.js";
-import type { CustomerInfo } from "../entities/customerInfo.js";
 import { createShipment } from "../entities/shipment.js";
+import type { ShippingAddress } from "../entities/shippingAddress.js";
+import type { CustomerInfoRepository } from "../repositories/customerInfoRepository.js";
 import type { ShipmentRepository } from "../repositories/shipmentRepository.js";
-import type { ShippingAddressRepository } from "../repositories/shippingAddressRepository.js";
 import type { ShippingEventPublisher } from "./shippingEventPublisher.js";
 
 // CU01: crear el envío automáticamente al recibir `order_placed`.
@@ -16,7 +16,7 @@ export type CreateShipmentFromOrderCommand = {
 };
 
 export type CreateShipmentFromOrderDeps = {
-  readonly addressRepo: ShippingAddressRepository;
+  readonly customerInfoRepo: CustomerInfoRepository;
   readonly shipmentRepo: ShipmentRepository;
   readonly publisher: ShippingEventPublisher;
 };
@@ -38,10 +38,10 @@ export async function createShipmentFromOrder(
   deps: CreateShipmentFromOrderDeps
 ): Promise<CreateShipmentOutcome> {
   const { orderId, userId, articles, correlationId } = command;
-  const { addressRepo, shipmentRepo, publisher } = deps;
+  const { customerInfoRepo, shipmentRepo, publisher } = deps;
 
-  const address = await addressRepo.findByUserId(userId);
-  if (!address) {
+  const info = await customerInfoRepo.findByUserId(userId);
+  if (!info) {
     await publisher.shippingError(
       { orderId, userId, message: "El usuario no tiene una dirección de envío registrada" },
       correlationId
@@ -49,17 +49,17 @@ export async function createShipmentFromOrder(
     return { kind: "no_address" };
   }
 
-  // Snapshot inmutable de la dirección al momento de crear el envío.
-  const customerInfo: CustomerInfo = {
-    customerId: address.userId,
-    name: address.name,
-    address: address.address,
-    city: address.city,
-    zipCode: address.zipCode,
-    phone: address.phone,
+  // Snapshot inmutable de los datos del cliente al momento de crear el envío.
+  const shippingAddress: ShippingAddress = {
+    customerId: info.userId,
+    name: info.name,
+    address: info.address,
+    city: info.city,
+    zipCode: info.zipCode,
+    phone: info.phone,
   };
 
-  const shipment = createShipment({ orderId, customerInfo, articles });
+  const shipment = createShipment({ orderId, shippingAddress, articles });
 
   try {
     await shipmentRepo.save(shipment);

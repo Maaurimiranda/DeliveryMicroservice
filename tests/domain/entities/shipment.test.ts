@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { Article } from "../../../src/domain/entities/article.js";
-import type { CustomerInfo } from "../../../src/domain/entities/customerInfo.js";
 import {
   cancel,
   completeExchange,
@@ -18,12 +17,13 @@ import {
 } from "../../../src/domain/entities/shipment.js";
 import { ShipmentStatus } from "../../../src/domain/entities/shipmentStatus.js";
 import { ShipmentType } from "../../../src/domain/entities/shipmentType.js";
+import type { ShippingAddress } from "../../../src/domain/entities/shippingAddress.js";
 import {
   InvalidShipmentDataError,
   InvalidTransitionError,
 } from "../../../src/domain/errors/domainErrors.js";
 
-const customerInfo: CustomerInfo = {
+const shippingAddress: ShippingAddress = {
   customerId: "user_456",
   name: "Juan Pérez",
   address: "Av. Siempreviva 742",
@@ -35,7 +35,7 @@ const customerInfo: CustomerInfo = {
 const articles: readonly Article[] = [{ articleId: "art_001", quantity: 2 }];
 
 function nuevoEnvio(): Shipment {
-  return createShipment({ orderId: "order_123", customerInfo, articles });
+  return createShipment({ orderId: "order_123", shippingAddress, articles });
 }
 
 function envioEn(status: ShipmentStatus): Shipment {
@@ -82,7 +82,7 @@ describe("createShipment (CU01)", () => {
   it("usa la descripción provista en la primera entrada de tracking (H6)", () => {
     const s = createShipment({
       orderId: "order_123",
-      customerInfo,
+      shippingAddress,
       articles,
       description: "Envío urgente",
     });
@@ -98,24 +98,24 @@ describe("createShipment (CU01)", () => {
 
   it("rechaza orderId vacío", () => {
     assert.throws(
-      () => createShipment({ orderId: "  ", customerInfo, articles }),
+      () => createShipment({ orderId: "  ", shippingAddress, articles }),
       InvalidShipmentDataError
     );
   });
 
   it("rechaza un envío sin artículos", () => {
     assert.throws(
-      () => createShipment({ orderId: "order_123", customerInfo, articles: [] }),
+      () => createShipment({ orderId: "order_123", shippingAddress, articles: [] }),
       InvalidShipmentDataError
     );
   });
 
-  it("rechaza customerInfo sin customerId ni dirección", () => {
+  it("rechaza shippingAddress sin customerId ni dirección", () => {
     assert.throws(
       () =>
         createShipment({
           orderId: "order_123",
-          customerInfo: { ...customerInfo, customerId: "" },
+          shippingAddress: { ...shippingAddress, customerId: "" },
           articles,
         }),
       InvalidShipmentDataError
@@ -124,7 +124,7 @@ describe("createShipment (CU01)", () => {
       () =>
         createShipment({
           orderId: "order_123",
-          customerInfo: { ...customerInfo, address: "" },
+          shippingAddress: { ...shippingAddress, address: "" },
           articles,
         }),
       InvalidShipmentDataError

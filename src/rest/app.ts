@@ -2,7 +2,7 @@ import express, { Express } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { env } from "../tools/environment.js";
-import { addressRoutes } from "./routes/addressRoutes.js";
+import { customerInfoRoutes } from "./routes/customerInfoRoutes.js";
 
 // Arma la aplicación Express.
 export function createApp(): Express {
@@ -21,8 +21,8 @@ export function createApp(): Express {
     });
   });
 
-  // /address debe ir antes de futuras rutas /:id (Etapa 5) para no ser capturado como id.
-  app.use("/api/shipments", addressRoutes);
+  // /customer-info debe ir antes de futuras rutas /:id (Etapa 5) para no ser capturado como id.
+  app.use("/api/shipments", customerInfoRoutes);
 
   return app;
 }

@@ -1,9 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { InvalidShipmentDataError, InvalidTransitionError } from "../errors/domainErrors.js";
 import type { Article } from "./article.js";
-import type { CustomerInfo } from "./customerInfo.js";
 import { ShipmentStatus, canTransition } from "./shipmentStatus.js";
 import { ShipmentType } from "./shipmentType.js";
+import type { ShippingAddress } from "./shippingAddress.js";
 import type { TrackingEntry } from "./trackingEntry.js";
 
 export type Shipment = {
@@ -11,7 +11,7 @@ export type Shipment = {
   readonly orderId: string;
   readonly status: ShipmentStatus;
   readonly type: ShipmentType;
-  readonly customerInfo: CustomerInfo;
+  readonly shippingAddress: ShippingAddress; // Snapshot inmutable copiado de CustomerInfo
   readonly articles: readonly Article[];
   readonly tracking: readonly TrackingEntry[]; // Historial de seguimiento del envío
   readonly relatedShipmentId?: string; // ID del envío relacionado (por ejemplo, un envío de cambio o devolución)
@@ -21,7 +21,7 @@ export type Shipment = {
 
 export type CreateShipmentInput = { // CU01: datos necesarios para crear un envío
   readonly orderId: string;
-  readonly customerInfo: CustomerInfo;
+  readonly shippingAddress: ShippingAddress;
   readonly articles: readonly Article[];
   readonly type?: ShipmentType;
   readonly relatedShipmentId?: string;
@@ -40,16 +40,16 @@ function validateCreateInput(input: CreateShipmentInput): void {
   if (input.articles.length === 0) {
     throw new InvalidShipmentDataError("articles", "El envío requiere al menos un artículo.");
   }
-  if (input.customerInfo.customerId.trim() === "") {
+  if (input.shippingAddress.customerId.trim() === "") {
     throw new InvalidShipmentDataError(
-      "customerInfo.customerId",
+      "shippingAddress.customerId",
       "El customerId es requerido y no puede estar vacío."
     );
   }
-  if (input.customerInfo.address.trim() === "") {
+  if (input.shippingAddress.address.trim() === "") {
     throw new InvalidShipmentDataError(
-      "customerInfo.address",
-      "La dirección del cliente es requerida y no puede estar vacía."
+      "shippingAddress.address",
+      "La dirección de envío es requerida y no puede estar vacía."
     );
   }
 }
@@ -66,7 +66,7 @@ export function createShipment(input: CreateShipmentInput): Shipment {
     orderId: input.orderId,
     status: ShipmentStatus.PENDING,
     type: input.type ?? ShipmentType.NORMAL,
-    customerInfo: input.customerInfo,
+    shippingAddress: input.shippingAddress,
     articles: [...input.articles],
     tracking: [
       {
@@ -160,7 +160,7 @@ export function createExchangeShipment(
 ): Shipment {
   return createShipment({
     orderId: original.orderId,
-    customerInfo: original.customerInfo,
+    shippingAddress: original.shippingAddress,
     articles,
     type: ShipmentType.EXCHANGE,
     relatedShipmentId: original.id,

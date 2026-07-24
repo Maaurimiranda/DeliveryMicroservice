@@ -10,9 +10,9 @@ import { type ShipmentDocument, toDocument, toDomain } from "../schemas/shipment
 
 const collection = () => getDb().collection<ShipmentDocument>("shipments");
 
-// Ownership: el dueño del envío es customerInfo.customerId (snapshot del userId al crear).
+// Ownership: el dueño del envío es shippingAddress.customerId (snapshot del userId al crear).
 function toMongoFilter(filter: ShipmentFilter): Filter<ShipmentDocument> {
-  return filter.userId ? { "customerInfo.customerId": filter.userId } : {};
+  return filter.userId ? { "shippingAddress.customerId": filter.userId } : {};
 }
 
 export const mongoShipmentRepository: ShipmentRepository = {

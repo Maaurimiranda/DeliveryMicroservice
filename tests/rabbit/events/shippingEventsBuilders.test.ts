@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { CustomerInfo } from "../../../src/domain/entities/customerInfo.js";
 import {
   cancel,
   completeExchange,
@@ -14,6 +13,7 @@ import {
   startReturn,
   type Shipment,
 } from "../../../src/domain/entities/shipment.js";
+import type { ShippingAddress } from "../../../src/domain/entities/shippingAddress.js";
 import {
   buildExchangeFinalized,
   buildExchangeInitiated,
@@ -24,7 +24,7 @@ import {
   buildShippingStateChanged,
 } from "../../../src/rabbit/events/shippingEvents.js";
 
-const customerInfo: CustomerInfo = {
+const shippingAddress: ShippingAddress = {
   customerId: "user_789",
   name: "Juan Pérez",
   address: "Calle Falsa 123",
@@ -36,7 +36,7 @@ const customerInfo: CustomerInfo = {
 function pending(): Shipment {
   return createShipment({
     orderId: "order_456",
-    customerInfo,
+    shippingAddress,
     articles: [{ articleId: "art_001", quantity: 2 }],
   });
 }

@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { CustomerInfo } from "../../../src/domain/entities/customerInfo.js";
 import { createShipment, type Shipment } from "../../../src/domain/entities/shipment.js";
 import { ShipmentType } from "../../../src/domain/entities/shipmentType.js";
+import type { ShippingAddress } from "../../../src/domain/entities/shippingAddress.js";
 import { toDocument, toDomain } from "../../../src/infrastructure/schemas/shipmentSchema.js";
 
-const customerInfo: CustomerInfo = {
+const shippingAddress: ShippingAddress = {
   customerId: "user_456",
   name: "Juan Pérez",
   address: "Av. Siempreviva 742",
@@ -17,7 +17,7 @@ const customerInfo: CustomerInfo = {
 function makeShipment(overrides: Partial<Parameters<typeof createShipment>[0]> = {}): Shipment {
   return createShipment({
     orderId: "order_123",
-    customerInfo,
+    shippingAddress,
     articles: [{ articleId: "art_1", quantity: 2 }],
     ...overrides,
   });

@@ -1,8 +1,8 @@
 import type { Article } from "../../domain/entities/article.js";
-import type { CustomerInfo } from "../../domain/entities/customerInfo.js";
 import type { Shipment } from "../../domain/entities/shipment.js";
 import type { ShipmentStatus } from "../../domain/entities/shipmentStatus.js";
 import type { ShipmentType } from "../../domain/entities/shipmentType.js";
+import type { ShippingAddress } from "../../domain/entities/shippingAddress.js";
 import type { TrackingEntry } from "../../domain/entities/trackingEntry.js";
 
 // Forma del documento Mongo: igual que Shipment pero el id de dominio (ship_*) es el _id.
@@ -12,7 +12,7 @@ export type ShipmentDocument = {
   orderId: string;
   status: ShipmentStatus;
   type: ShipmentType;
-  customerInfo: CustomerInfo;
+  shippingAddress: ShippingAddress;
   articles: Article[];
   tracking: TrackingEntry[];
   relatedShipmentId?: string;

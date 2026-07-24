@@ -22,7 +22,7 @@ El Microservicio de Envíos es responsable de gestionar todo el ciclo de vida de
 | **Campo**         | **Descripción** |
 |-------------------|------------------|
 | **Disparador**    | Evento `order_placed` publicado por Orders en su exchange fanout `order_placed` |
-| **Descripción**   | Cuando se confirma una orden, el sistema crea automáticamente un nuevo envío con estado `PENDING`. La dirección se copia como snapshot inmutable desde el agregado `ShippingAddress` propio de Delivery. Si el usuario no tiene dirección registrada, no se crea el envío y se publica `SHIPPING_ERROR`. |
+| **Descripción**   | Cuando se confirma una orden, el sistema crea automáticamente un nuevo envío con estado `PENDING`. La dirección se copia como snapshot inmutable desde el agregado `CustomerInfo` propio de Delivery. Si el usuario no tiene dirección registrada, no se crea el envío y se publica `SHIPPING_ERROR`. |
 | **Evento emitido**| `SHIPPING_CREATED` → Routing key: `shipping.created` |
 | **Estado inicial**| `PENDING` |
 
@@ -30,8 +30,8 @@ Flujo:
 
 1. Escucha `order_placed` en la cola propia durable `delivery_order_placed` (bind al exchange fanout `order_placed`, routing key vacía)
 2. Valida el campo `message` del sobre `{ correlation_id, message }` con Zod
-3. Busca la `ShippingAddress` del `userId`; si no existe, publica `SHIPPING_ERROR` y hace ack
-4. Crea el agregado `Shipment` con estado `PENDING` y snapshot de la dirección en `customerInfo`
+3. Busca la `CustomerInfo` del `userId`; si no existe, publica `SHIPPING_ERROR` y hace ack
+4. Crea el agregado `Shipment` con estado `PENDING` y snapshot de la dirección en `shippingAddress`
 5. Persiste en MongoDB — el índice único parcial `(orderId, type=NORMAL)` garantiza idempotencia: clave duplicada ⇒ ack sin recrear
 6. Publica `SHIPPING_CREATED` a `shipping_events` preservando el `correlation_id` entrante
 
@@ -272,7 +272,7 @@ Entidad principal que representa un envío.
   orderId: string;                // ID de la orden asociada
   status: ShipmentStatus;         // Estado actual del envío
   type: ShipmentType;             // Tipo: NORMAL | EXCHANGE
-  customerInfo: CustomerInfo;     // Snapshot inmutable copiado de ShippingAddress al crear el envío
+  shippingAddress: ShippingAddress; // Snapshot inmutable copiado de CustomerInfo al crear el envío
   articles: Article[];            // Artículos a enviar
   tracking: TrackingEntry[];      // Historial de estados
   relatedShipmentId?: string;     // ID de envío relacionado (cambios)
@@ -333,28 +333,28 @@ enum ShipmentType {
 }
 ```
 
-### CustomerInfo (Value Object)
+### ShippingAddress (Value Object)
 
-Información del cliente. Snapshot inmutable copiado desde `ShippingAddress` al momento de crear el envío: cambios posteriores de dirección no afectan envíos existentes.
+Dirección a la que se despacha un envío concreto. Snapshot **inmutable** copiado desde `CustomerInfo` al momento de crear el envío: cambios posteriores en los datos del cliente no afectan envíos existentes. `customerId` es además el dueño del envío (base del control de propiedad).
 
 ```typescript
 {
-  customerId: string;                // ID del cliente
-  name: string;                      // Nombre del cliente
-  address: string;                   // Dirección del cliente
-  city: string;                      // Ciudad del cliente
-  zipCode: string;                   // Código postal del cliente
-  phone: string;                     // Teléfono del cliente
+  customerId: string;                // ID del cliente dueño del envío
+  name: string;                      // Nombre del destinatario
+  address: string;                   // Dirección de entrega
+  city: string;                      // Ciudad
+  zipCode: string;                   // Código postal
+  phone: string;                     // Teléfono de contacto
 }
 ```
 
-### ShippingAddress (Agregado)
+### CustomerInfo (Agregado)
 
-Dirección de envío del usuario, agregado propio de Delivery (ningún otro microservicio del ecosistema almacena direcciones). Se gestiona vía `GET/PUT /api/shipments/address`. Al crear un envío se copia como snapshot inmutable en `customerInfo`.
+Datos de contacto y dirección del usuario, agregado propio de Delivery (ningún otro microservicio del ecosistema los almacena). Es **modificable**: se gestiona vía `GET/PUT /api/shipments/customer-info`. Al crear un envío se copia como snapshot inmutable en `shippingAddress`.
 
 ```typescript
 {
-  userId: string;         // Dueño de la dirección (relación uno a uno)
+  userId: string;         // Dueño de los datos (relación uno a uno)
   name: string;           // Nombre del destinatario
   address: string;        // Dirección
   city: string;           // Ciudad
@@ -457,9 +457,9 @@ GET /api/shipments/tracking/:id
 - **Propiedad (ownership)**: en los endpoints de usuario, si el envío consultado no pertenece al usuario autenticado se responde **404** (nunca 403), para no revelar la existencia del recurso.
 
 ---
-`GET /api/shipments/address`
+`GET /api/shipments/customer-info`
 
-**Descripción**: Obtiene la dirección de envío del usuario autenticado
+**Descripción**: Obtiene los datos de dirección del usuario autenticado (agregado `CustomerInfo`)
 **Rol requerido**: `user`
 
 **Entradas**: Sin datos
@@ -484,9 +484,9 @@ GET /api/shipments/tracking/:id
 - `401`: Autenticación fallida
 
 ---
-`PUT /api/shipments/address`
+`PUT /api/shipments/customer-info`
 
-**Descripción**: Crea o actualiza la dirección de envío del usuario autenticado. Sin esta dirección registrada no se pueden crear envíos automáticos (CU01).
+**Descripción**: Crea o actualiza los datos de dirección del usuario autenticado. Sin estos datos registrados no se pueden crear envíos automáticos (CU01). Modificarlos **no altera** los envíos ya creados: cada uno conserva su propio snapshot `shippingAddress`.
 **Rol requerido**: `user`
 
 **Entradas** (body, validado con Zod):
@@ -538,7 +538,7 @@ GET /api/shipments/tracking/:id
     "orderId": "order_123",
     "status": "IN_TRANSIT",
     "type": "NORMAL",
-    "customerInfo": { /* ... */ },
+    "shippingAddress": { /* ... */ },
     "articles": [ /* ... */ ],
     "tracking": [ /* ... */ ],
     "createdAt": "2024-01-15T10:00:00.000Z",
@@ -938,8 +938,8 @@ Todos los mensajes del ecosistema viajan con el sobre de `commongo/rbt`:
 
 **Acciones al recibir mensaje**:
 1. Valida `message` con Zod
-2. Busca la `ShippingAddress` del `userId`; si no existe, publica `SHIPPING_ERROR` y hace ack
-3. Crea el envío con estado `PENDING` y snapshot de la dirección en `customerInfo`
+2. Busca la `CustomerInfo` del `userId`; si no existe, publica `SHIPPING_ERROR` y hace ack
+3. Crea el envío con estado `PENDING` y snapshot de la dirección en `shippingAddress`
 4. Persiste en MongoDB; si el índice único parcial `(orderId, type=NORMAL)` detecta duplicado, hace ack sin recrear (idempotencia)
 5. Publica `SHIPPING_CREATED` preservando el `correlation_id`
 
@@ -983,7 +983,7 @@ Los 9 eventos se publican en el exchange **`shipping_events`** (topic). Todos lo
     "orderId": "order_456",
     "status": "PENDING",
     "typeShipment": "NORMAL",
-    "customerInfo": {
+    "shippingAddress": {
       "customerId": "user_789",
       "name": "Juan Pérez",
       "address": "Calle Falsa 123",
@@ -1202,7 +1202,7 @@ CU03 - Pasar a En Camino,
 #### 9. Evento 9: `SHIPPING_ERROR`
 
 **Routing key**: `shipping.error`
-**Descripcion**: Se emite **únicamente ante fallos de los consumers** (ej.: llega `order_placed` de un usuario sin `ShippingAddress` registrada). Los errores de endpoints HTTP se responden por HTTP, no por este evento.
+**Descripcion**: Se emite **únicamente ante fallos de los consumers** (ej.: llega `order_placed` de un usuario sin `CustomerInfo` registrada). Los errores de endpoints HTTP se responden por HTTP, no por este evento.
 
 **Estructura del mensaje**:
 ```json

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { CustomerInfo } from "../../../src/domain/entities/customerInfo.js";
 import { createShipment } from "../../../src/domain/entities/shipment.js";
 import { ShipmentType } from "../../../src/domain/entities/shipmentType.js";
+import type { ShippingAddress } from "../../../src/domain/entities/shippingAddress.js";
 import {
   SHIPPING_CREATED_RK,
   SHIPPING_ERROR_RK,
@@ -10,7 +10,7 @@ import {
   buildShippingError,
 } from "../../../src/rabbit/events/shippingEvents.js";
 
-const customerInfo: CustomerInfo = {
+const shippingAddress: ShippingAddress = {
   customerId: "user_789",
   name: "Juan Pérez",
   address: "Calle Falsa 123",
@@ -23,7 +23,7 @@ const articles = [{ articleId: "art_001", quantity: 2 }];
 
 describe("buildShippingCreated", () => {
   it("arma el payload camelCase de SHIPPING_CREATED", () => {
-    const shipment = createShipment({ orderId: "order_456", customerInfo, articles });
+    const shipment = createShipment({ orderId: "order_456", shippingAddress, articles });
     const msg = buildShippingCreated(shipment);
 
     assert.equal(msg.type, "SHIPPING_CREATED");
@@ -31,7 +31,7 @@ describe("buildShippingCreated", () => {
     assert.equal(msg.orderId, "order_456");
     assert.equal(msg.status, "PENDING");
     assert.equal(msg.typeShipment, "NORMAL");
-    assert.deepEqual(msg.customerInfo, customerInfo);
+    assert.deepEqual(msg.shippingAddress, shippingAddress);
     assert.deepEqual(msg.articles, articles);
     assert.equal(msg.timestamp, shipment.createdAt.toISOString());
   });
@@ -39,7 +39,7 @@ describe("buildShippingCreated", () => {
   it("refleja typeShipment EXCHANGE", () => {
     const shipment = createShipment({
       orderId: "order_456",
-      customerInfo,
+      shippingAddress,
       articles,
       type: ShipmentType.EXCHANGE,
       relatedShipmentId: "ship_orig",

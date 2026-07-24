@@ -5,7 +5,7 @@ import { connectRabbit, closeRabbit } from "../rabbit/connection.js";
 import { startOrderPlacedConsumer } from "../rabbit/consumers/orderPlacedConsumer.js";
 import { startAuthConsumer } from "../rabbit/consumers/authConsumer.js";
 import { mongoShipmentRepository } from "../infrastructure/repositories/mongoShipmentRepository.js";
-import { mongoShippingAddressRepository } from "../infrastructure/repositories/mongoShippingAddressRepository.js";
+import { mongoCustomerInfoRepository } from "../infrastructure/repositories/mongoCustomerInfoRepository.js";
 import { rabbitShippingEventPublisher } from "../rabbit/rabbitShippingEventPublisher.js";
 
 async function main() {
@@ -14,7 +14,7 @@ async function main() {
 
   // CU01: consume `order_placed` y publica SHIPPING_CREATED en `shipping_events`.
   await startOrderPlacedConsumer({
-    addressRepo: mongoShippingAddressRepository,
+    customerInfoRepo: mongoCustomerInfoRepository,
     shipmentRepo: mongoShipmentRepository,
     publisher: rabbitShippingEventPublisher,
   });

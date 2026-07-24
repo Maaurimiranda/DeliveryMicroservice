@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import type { CustomerInfo } from "../../../src/domain/entities/customerInfo.js";
 import type { Shipment } from "../../../src/domain/entities/shipment.js";
-import type { ShippingAddress } from "../../../src/domain/entities/shippingAddress.js";
+import type { CustomerInfoRepository } from "../../../src/domain/repositories/customerInfoRepository.js";
 import type { ShipmentRepository } from "../../../src/domain/repositories/shipmentRepository.js";
-import type { ShippingAddressRepository } from "../../../src/domain/repositories/shippingAddressRepository.js";
 import type {
   ShippingErrorInfo,
   ShippingEventPublisher,
@@ -13,7 +13,7 @@ import {
   type CreateShipmentFromOrderCommand,
 } from "../../../src/domain/services/createShipmentFromOrderUseCase.js";
 
-const address: ShippingAddress = {
+const customerInfo: CustomerInfo = {
   userId: "user_789",
   name: "Juan Pérez",
   address: "Calle Falsa 123",
@@ -30,7 +30,7 @@ const command: CreateShipmentFromOrderCommand = {
   correlationId: "corr_123",
 };
 
-function fakeAddressRepo(result: ShippingAddress | null): ShippingAddressRepository {
+function fakeCustomerInfoRepo(result: CustomerInfo | null): CustomerInfoRepository {
   return {
     async findByUserId() {
       return result;
@@ -95,7 +95,7 @@ describe("createShipmentFromOrder (CU01)", () => {
     const calls = emptyCalls();
 
     const outcome = await createShipmentFromOrder(command, {
-      addressRepo: fakeAddressRepo(address),
+      customerInfoRepo: fakeCustomerInfoRepo(customerInfo),
       shipmentRepo: fakeShipmentRepo(saved),
       publisher: fakePublisher(calls),
     });
@@ -107,10 +107,10 @@ describe("createShipmentFromOrder (CU01)", () => {
     assert.equal(shipment.status, "PENDING");
     assert.equal(shipment.tracking.length, 1);
     assert.equal(shipment.orderId, "order_456");
-    // Snapshot inmutable copiado de la dirección.
-    assert.equal(shipment.customerInfo.customerId, "user_789");
-    assert.equal(shipment.customerInfo.name, "Juan Pérez");
-    assert.equal(shipment.customerInfo.address, "Calle Falsa 123");
+    // Snapshot inmutable copiado de CustomerInfo.
+    assert.equal(shipment.shippingAddress.customerId, "user_789");
+    assert.equal(shipment.shippingAddress.name, "Juan Pérez");
+    assert.equal(shipment.shippingAddress.address, "Calle Falsa 123");
 
     assert.equal(calls.errors.length, 0);
     assert.equal(calls.created.length, 1);
@@ -125,7 +125,7 @@ describe("createShipmentFromOrder (CU01)", () => {
     const calls = emptyCalls();
 
     const outcome = await createShipmentFromOrder(command, {
-      addressRepo: fakeAddressRepo(null),
+      customerInfoRepo: fakeCustomerInfoRepo(null),
       shipmentRepo: fakeShipmentRepo(saved),
       publisher: fakePublisher(calls),
     });
@@ -146,7 +146,7 @@ describe("createShipmentFromOrder (CU01)", () => {
     const calls = emptyCalls();
 
     const outcome = await createShipmentFromOrder(command, {
-      addressRepo: fakeAddressRepo(address),
+      customerInfoRepo: fakeCustomerInfoRepo(customerInfo),
       shipmentRepo: fakeShipmentRepo([], { throw: { code: 11000 } }),
       publisher: fakePublisher(calls),
     });
@@ -161,7 +161,7 @@ describe("createShipmentFromOrder (CU01)", () => {
 
     await assert.rejects(
       createShipmentFromOrder(command, {
-        addressRepo: fakeAddressRepo(address),
+        customerInfoRepo: fakeCustomerInfoRepo(customerInfo),
         shipmentRepo: fakeShipmentRepo([], { throw: new Error("mongo caído") }),
         publisher: fakePublisher(calls),
       }),
