@@ -110,26 +110,23 @@ describe("createShipment (CU01)", () => {
     );
   });
 
-  it("rechaza shippingAddress sin customerId ni dirección", () => {
-    assert.throws(
-      () =>
-        createShipment({
-          orderId: "order_123",
-          shippingAddress: { ...shippingAddress, customerId: "" },
-          articles,
-        }),
-      InvalidShipmentDataError
-    );
-    assert.throws(
-      () =>
-        createShipment({
-          orderId: "order_123",
-          shippingAddress: { ...shippingAddress, address: "" },
-          articles,
-        }),
-      InvalidShipmentDataError
-    );
-  });
+  // El snapshot entero se copia y CU08 lo reusa en el envío de cambio: los seis campos importan.
+  const camposDireccion = ["customerId", "name", "address", "city", "zipCode", "phone"] as const;
+
+  for (const campo of camposDireccion) {
+    it(`rechaza shippingAddress con ${campo} vacío`, () => {
+      assert.throws(
+        () =>
+          createShipment({
+            orderId: "order_123",
+            shippingAddress: { ...shippingAddress, [campo]: "   " },
+            articles,
+          }),
+        (err: unknown) =>
+          err instanceof InvalidShipmentDataError && err.field === `shippingAddress.${campo}`
+      );
+    });
+  }
 });
 
 describe("camino feliz PENDING → PREPARED → IN_TRANSIT → DELIVERED", () => {
@@ -328,6 +325,63 @@ describe("cambio (CU08 / CU09)", () => {
     const cambio = createExchangeShipment(original, articles);
 
     assert.equal(prepare(cambio, "admin_user").status, ShipmentStatus.PREPARED);
+  });
+});
+
+describe("descripción de tracking configurable", () => {
+  function ultima(s: Shipment) {
+    return s.tracking[s.tracking.length - 1]!.description;
+  }
+
+  it("usa la descripción provista en lugar del texto por defecto", () => {
+    const pendiente = nuevoEnvio();
+    assert.equal(ultima(prepare(pendiente, "admin_user", "Verificado")), "Verificado");
+    assert.equal(
+      ultima(ship(prepare(pendiente, "admin_user"), "admin_user", "Retirado por logística")),
+      "Retirado por logística"
+    );
+    assert.equal(
+      ultima(deliver(envioEn(ShipmentStatus.IN_TRANSIT), "admin_user", "Recibido por portería")),
+      "Recibido por portería"
+    );
+    assert.equal(
+      ultima(cancel(pendiente, "admin_user", "sin stock", "Cancelado a pedido")),
+      "Cancelado a pedido"
+    );
+    assert.equal(
+      ultima(startReturn(envioEn(ShipmentStatus.DELIVERED), "user_456", "falla", "Talle chico")),
+      "Talle chico"
+    );
+    assert.equal(
+      ultima(completeReturn(envioEn(ShipmentStatus.RETURNING), "admin_user", "Reembolsado")),
+      "Reembolsado"
+    );
+    assert.equal(
+      ultima(startExchange(envioEn(ShipmentStatus.DELIVERED), "user_456", "talle", "Talle 39")),
+      "Talle 39"
+    );
+    assert.equal(
+      ultima(
+        completeExchange(
+          linkRelatedShipment(envioEn(ShipmentStatus.RETURNING), "ship_cambio"),
+          "admin_user",
+          "Cambio ok"
+        )
+      ),
+      "Cambio ok"
+    );
+  });
+
+  it("sin descripción cae al texto por defecto del dominio", () => {
+    assert.equal(ultima(prepare(nuevoEnvio(), "admin_user")), "Envío preparado para entrega");
+    assert.equal(
+      ultima(cancel(nuevoEnvio(), "admin_user", "sin stock")),
+      "Envío cancelado: sin stock"
+    );
+    assert.equal(
+      ultima(startReturn(envioEn(ShipmentStatus.DELIVERED), "user_456", "falla")),
+      "Devolución iniciada: falla"
+    );
   });
 });
 
