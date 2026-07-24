@@ -36,7 +36,6 @@ function fakeCustomerInfoRepo(result: CustomerInfo | null): CustomerInfoReposito
       return result;
     },
     async save() {},
-    async update() {},
   };
 }
 
